@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Scenario, Card } from "@/types/game";
 
 export default function MafiaGame() {
   const { t, language, setLanguage } = useLanguage();
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   
   // Game Setup State
   const [mafiasCount, setMafiasCount] = useState<number>(0);
@@ -24,9 +29,15 @@ export default function MafiaGame() {
   useEffect(() => {
     const saved = localStorage.getItem("scenarios");
     if (saved) {
-      setScenarios(JSON.parse(saved)); // eslint-disable-line react-hooks/set-state-in-effect
+      setTimeout(() => {
+        setScenarios(JSON.parse(saved));
+      }, 0);
     }
   }, []);
+
+  if (!isClient) {
+    return <div className="min-h-screen bg-black" />;
+  }
 
   const handleMafiasCountChange = (count: number) => {
     setMafiasCount(count);

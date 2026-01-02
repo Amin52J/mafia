@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "pages:build": "npx @cloudflare/next-on-pages --outdir .vercel/output",
-    "pages:preview": "npm run pages:build && wrangler pages dev .vercel/output --compatibility-flag=nodejs_compat",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:preview": "npm run pages:build && wrangler pages dev .vercel/output",
     "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output"
   },
   "dependencies": {
