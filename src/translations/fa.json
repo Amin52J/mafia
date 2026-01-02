@@ -1,0 +1,19 @@
+{
+  "title": "مافیا",
+  "mafiasCount": "تعداد مافیا",
+  "citizensCount": "تعداد شهروند",
+  "roles": "نقش‌ها",
+  "mafiaRole": "نقش مافیا",
+  "citizenRole": "نقش شهروند",
+  "saveScenario": "ذخیره سناریو",
+  "reset": "بازنشانی",
+  "start": "شروع",
+  "restart": "شروع مجدد",
+  "seen": "دیدم",
+  "suggestedScenarios": "سناریوهای پیشنهادی",
+  "language": "زبان",
+  "defaultMafia": "مافیا",
+  "defaultCitizen": "شهروند",
+  "enterRoleName": "نام نقش را وارد کنید",
+  "scenarioName": "نام سناریو"
+}

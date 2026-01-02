@@ -1,0 +1,19 @@
+{
+  "title": "Mafia Game",
+  "mafiasCount": "Number of Mafias",
+  "citizensCount": "Number of Citizens",
+  "roles": "Roles",
+  "mafiaRole": "Mafia Role",
+  "citizenRole": "Citizen Role",
+  "saveScenario": "Save Scenario",
+  "reset": "Reset",
+  "start": "Start",
+  "restart": "Restart",
+  "seen": "Seen",
+  "suggestedScenarios": "Suggested Scenarios",
+  "language": "Language",
+  "defaultMafia": "Mafia",
+  "defaultCitizen": "Citizen",
+  "enterRoleName": "Enter role name",
+  "scenarioName": "Scenario name"
+}
