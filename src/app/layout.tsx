@@ -48,10 +48,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fa" dir="rtl" className="dark" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${vazir.variable} antialiased bg-black text-white`}
-      >
+    <html
+      lang="fa"
+      dir="rtl"
+      className={`${geistSans.variable} ${geistMono.variable} ${vazir.variable} dark`}
+      suppressHydrationWarning
+    >
+      <body className="antialiased bg-black text-white">
         <LanguageProvider>
           <ServiceWorkerRegistration />
           {children}

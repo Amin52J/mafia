@@ -1,9 +1,7 @@
 @import "tailwindcss";
 
-:root {
-  --geist-sans: ui-sans-serif, system-ui, sans-serif;
-  --geist-mono: ui-monospace, monospace;
-  --font-vazirmatn: ui-sans-serif, system-ui, sans-serif;
+html {
+  scrollbar-gutter: stable;
 }
 
 @theme {
@@ -19,7 +17,7 @@
 }
 
 :root:lang(fa) {
-  --font-sans: var(--font-vazirmatn);
+  --font-sans: var(--font-vazir);
 }
 
 body {
@@ -67,8 +65,64 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+@utility animate-fade-in {
+  animation: fade-in 350ms ease-out both;
+}
+
+@utility animate-slide-up {
+  animation: slide-up 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@utility animate-zoom-in {
+  animation: zoom-in 250ms ease-out both;
+}
+
+@utility safe-pb {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
 .animate-float {
   animation: float 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-zoom-in,
+  .animate-float {
+    animation: none !important;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes float {
