@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import MafiaGame from "@/components/MafiaGame";
 
+export const runtime = "edge";
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
 
