@@ -4,8 +4,6 @@ import "./globals.css";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 
-export const runtime = "edge";
-
 const geistSans = Geist({
   variable: "--geist-sans",
   subsets: ["latin"],

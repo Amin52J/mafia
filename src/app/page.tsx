@@ -1,7 +1,5 @@
 import MafiaGame from "@/components/MafiaGame";
 
-export const runtime = "edge";
-
 export default function Home() {
   return <MafiaGame />;
 }
