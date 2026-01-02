@@ -7,9 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "pages:build": "npx @cloudflare/next-on-pages",
-    "pages:preview": "npm run pages:build && wrangler pages dev .vercel/output",
-    "pages:deploy": "npm run pages:build && wrangler pages deploy .vercel/output"
+    "pages:build": "next build",
+    "pages:preview": "npm run pages:build && wrangler pages dev out",
+    "pages:deploy": "npm run pages:build && wrangler pages deploy out"
   },
   "dependencies": {
     "next": "15.1.4",
@@ -17,7 +17,6 @@
     "react-dom": "19.0.0"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.16",
     "@eslint/eslintrc": "^3.3.3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
