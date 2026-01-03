@@ -201,19 +201,20 @@ export default function MafiaGame() {
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 
     const allRoles = [
-      ...mafiaRoles.map(r => r.trim() || t("defaultMafia")),
-      ...citizenRoles.map(r => r.trim() || t("defaultCitizen")),
+      ...mafiaRoles.map(r => ({role: r.trim() || t("defaultMafia"), side: 'mafia'})),
+      ...citizenRoles.map(r => ({role: r.trim() || t("defaultCitizen"), side: 'citizen'})),
     ];
 
     // Shuffle
     const shuffled = allRoles
-      .map(value => ({ value, sort: Math.random() }))
+      .map(({role, side}) => ({ role, side, sort: Math.random() }))
       .sort((a, b) => a.sort - b.sort)
-      .map(({ value }, index) => ({
+      .map(({ role, side }, index) => ({
         id: index,
-        role: value,
+        role,
         isFlipped: false,
         isSeen: false,
+        side: side as "citizen" | "mafia",
       }));
 
     setCards(shuffled);
@@ -300,7 +301,7 @@ export default function MafiaGame() {
                   return (
                     <div
                       key={card.id}
-                      className="relative aspect-[3/4] rounded-3xl"
+                      className={`relative aspect-[3/4] rounded-3xl`}
                       aria-hidden
                     />
                   );
@@ -328,7 +329,7 @@ export default function MafiaGame() {
                     </div>
 
                     {/* Back Side */}
-                    <div className="absolute inset-0 bg-zinc-100 text-black rounded-3xl flex flex-col items-center justify-between [transform:rotateY(180deg)] backface-hidden p-6 text-center shadow-2xl">
+                    <div className={`absolute inset-0 bg-zinc-100 text-black rounded-3xl flex flex-col items-center justify-between [transform:rotateY(180deg)] backface-hidden p-6 text-center shadow-2xl border-4 ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
                       <div className="w-full">
                         <div className="text-2xl font-black tracking-tight leading-tight mt-8">{card.role}</div>
                       </div>
@@ -645,7 +646,10 @@ export default function MafiaGame() {
                       >
                         <button
                           type="button"
-                          onClick={() => loadScenario(s)}
+                          onClick={() => {
+                            loadScenario(s);
+                            setShowManageScenarios(false);
+                          }}
                           className="min-w-0 flex-1 text-left"
                         >
                           <div className="flex items-center justify-between gap-3">
