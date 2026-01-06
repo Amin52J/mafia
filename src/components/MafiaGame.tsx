@@ -32,6 +32,14 @@ export default function MafiaGame() {
   const [renameValue, setRenameValue] = useState("");
   const saveInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (notesRef.current) {
+      notesRef.current.style.height = "auto";
+      notesRef.current.style.height = `${notesRef.current.scrollHeight}px`;
+    }
+  }, [scenarioNotes]);
 
   useEffect(() => {
     if (showSaveInput) {
@@ -397,8 +405,8 @@ export default function MafiaGame() {
               <div className="mb-8 text-4xl">🎭</div>
               
               {scenarioNotes && (
-                <div className="w-full mb-8 glass rounded-3xl border border-white/10 p-6 text-center">
-                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-3">
+                <div className="w-full mb-8 glass rounded-3xl border border-white/10 p-6">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-3 text-center">
                     {t("notes")}
                   </div>
                   <div className="text-sm font-medium text-zinc-200 leading-relaxed whitespace-pre-wrap italic">
@@ -556,13 +564,14 @@ export default function MafiaGame() {
             <div className="space-y-4 pt-4">
               <div className="flex flex-col gap-4">
                 <textarea
+                  ref={notesRef}
                   placeholder={`${t("notes")} (${t("optional")})`}
                   value={scenarioNotes}
                   onChange={(e) => setScenarioNotes(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === " ") e.stopPropagation();
                   }}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-white/20 transition-all font-medium resize-none min-h-[100px]"
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-white/20 transition-all font-medium resize-none min-h-[100px] overflow-hidden"
                 />
 
                 <div className="flex gap-3">
