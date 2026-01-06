@@ -409,7 +409,7 @@ export default function MafiaGame() {
                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-3 text-center">
                     {t("notes")}
                   </div>
-                  <div className="text-sm font-medium text-zinc-200 leading-relaxed whitespace-pre-wrap italic">
+                  <div className="text-sm font-medium text-zinc-200 leading-relaxed whitespace-pre-wrap">
                     {scenarioNotes}
                   </div>
                 </div>
