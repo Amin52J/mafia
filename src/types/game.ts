@@ -5,6 +5,7 @@ export interface Scenario {
   citizensCount: number;
   mafiaRoles: string[];
   citizenRoles: string[];
+  notes?: string;
 }
 
 export interface Card {

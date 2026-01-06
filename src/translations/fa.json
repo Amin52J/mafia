@@ -32,5 +32,7 @@
   "defaultMafia": "مافیا",
   "defaultCitizen": "شهروند",
   "enterRoleName": "نام نقش را وارد کنید",
-  "scenarioName": "نام سناریو"
+  "scenarioName": "نام سناریو",
+  "notes": "یادداشت‌ها",
+  "optional": "اختیاری"
 }

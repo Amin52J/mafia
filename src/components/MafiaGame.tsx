@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useState, useEffect, useSyncExternalStore, useRef, type ReactNode } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Scenario, Card } from "@/types/game";
 
@@ -25,16 +25,53 @@ export default function MafiaGame() {
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedCardId, setFlippedCardId] = useState<number | null>(null);
   const [scenarioName, setScenarioName] = useState("");
+  const [scenarioNotes, setScenarioNotes] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [showManageScenarios, setShowManageScenarios] = useState(false);
   const [renamingScenarioId, setRenamingScenarioId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const saveInputRef = useRef<HTMLInputElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showSaveInput) {
+      const timer = setTimeout(() => {
+        saveInputRef.current?.focus();
+      }, 550);
+      return () => clearTimeout(timer);
+    }
+  }, [showSaveInput]);
+
+  useEffect(() => {
+    if (renamingScenarioId) {
+      const timer = setTimeout(() => {
+        renameInputRef.current?.focus();
+      }, 550);
+      return () => clearTimeout(timer);
+    }
+  }, [renamingScenarioId]);
+
+  useEffect(() => {
+    if (showSaveInput || showManageScenarios) {
+      // Prevent background scroll
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showSaveInput, showManageScenarios]);
 
   useEffect(() => {
     const saved = localStorage.getItem("scenarios");
     if (saved) {
       setTimeout(() => {
-        setScenarios(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setScenarios(parsed.sort((a: Scenario, b: Scenario) => a.name.localeCompare(b.name)));
+        }
       }, 0);
     }
   }, []);
@@ -168,13 +205,14 @@ export default function MafiaGame() {
     const newScenario: Scenario = {
       id: Math.random().toString(36).substring(2, 11),
       name: scenarioName.trim(),
+      notes: scenarioNotes.trim() || undefined,
       mafiasCount,
       citizensCount,
       mafiaRoles,
       citizenRoles,
     };
 
-    const updated = [...scenarios, newScenario];
+    const updated = [...scenarios, newScenario].sort((a, b) => a.name.localeCompare(b.name));
     setScenarios(updated);
     localStorage.setItem("scenarios", JSON.stringify(updated));
     setScenarioName("");
@@ -186,6 +224,7 @@ export default function MafiaGame() {
     setCitizensCount(s.citizensCount);
     setMafiaRoles(s.mafiaRoles);
     setCitizenRoles(s.citizenRoles);
+    setScenarioNotes(s.notes || "");
   };
 
   const resetSetup = () => {
@@ -194,6 +233,7 @@ export default function MafiaGame() {
     setMafiaRoles([]);
     setCitizenRoles([]);
     setScenarioName("");
+    setScenarioNotes("");
     setShowSaveInput(false);
   };
 
@@ -253,8 +293,9 @@ export default function MafiaGame() {
   const unseenCardsCount = cards.reduce((acc, c) => (c.isSeen ? acc : acc + 1), 0);
 
   const persistScenarios = (next: Scenario[]) => {
-    setScenarios(next);
-    localStorage.setItem("scenarios", JSON.stringify(next));
+    const sorted = [...next].sort((a, b) => a.name.localeCompare(b.name));
+    setScenarios(sorted);
+    localStorage.setItem("scenarios", JSON.stringify(sorted));
   };
 
   const deleteScenario = (id: string) => {
@@ -352,11 +393,23 @@ export default function MafiaGame() {
               })}
             </div>
           ) : (
-            <div className="text-center animate-zoom-in">
+            <div className="w-full max-w-sm flex flex-col items-center animate-zoom-in">
               <div className="mb-8 text-4xl">🎭</div>
+              
+              {scenarioNotes && (
+                <div className="w-full mb-8 glass rounded-3xl border border-white/10 p-6 text-center">
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-3">
+                    {t("notes")}
+                  </div>
+                  <div className="text-sm font-medium text-zinc-200 leading-relaxed whitespace-pre-wrap italic">
+                    {scenarioNotes}
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={restart}
-                className="px-10 py-4 bg-white text-black rounded-2xl font-black text-lg leading-none inline-flex items-center justify-center active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                className="w-full py-4 bg-white text-black rounded-2xl font-black text-lg leading-none inline-flex items-center justify-center active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
               >
                 {t("restart")}
               </button>
@@ -501,26 +554,38 @@ export default function MafiaGame() {
             </div>
 
             <div className="space-y-4 pt-4">
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowSaveInput(true)}
-                  className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold leading-none inline-flex items-center justify-center gap-2 hover:bg-white/10 transition-all active:scale-95"
-                >
-                  <Icon className="h-5 w-5">
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                  </Icon>
-                  {t("saveScenario")}
-                </button>
-                <button
-                  onClick={resetSetup}
-                  className="px-8 py-4 bg-transparent border border-white/10 rounded-2xl text-sm font-bold leading-none text-zinc-500 hover:text-white transition-all active:scale-95 inline-flex items-center justify-center gap-2"
-                >
-                  <Icon className="h-5 w-5">
-                    <path d="M21 12a9 9 0 1 1-3-6.7" />
-                    <path d="M21 3v6h-6" />
-                  </Icon>
-                  {t("reset")}
-                </button>
+              <div className="flex flex-col gap-4">
+                <textarea
+                  placeholder={`${t("notes")} (${t("optional")})`}
+                  value={scenarioNotes}
+                  onChange={(e) => setScenarioNotes(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === " ") e.stopPropagation();
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm outline-none focus:border-white/20 transition-all font-medium resize-none min-h-[100px]"
+                />
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowSaveInput(true)}
+                    className="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl text-sm font-bold leading-none inline-flex items-center justify-center gap-2 hover:bg-white/10 transition-all active:scale-95"
+                  >
+                    <Icon className="h-5 w-5">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </Icon>
+                    {t("saveScenario")}
+                  </button>
+                  <button
+                    onClick={resetSetup}
+                    className="px-8 py-4 bg-transparent border border-white/10 rounded-2xl text-sm font-bold leading-none text-zinc-500 hover:text-white transition-all active:scale-95 inline-flex items-center justify-center gap-2"
+                  >
+                    <Icon className="h-5 w-5">
+                      <path d="M21 12a9 9 0 1 1-3-6.7" />
+                      <path d="M21 3v6h-6" />
+                    </Icon>
+                    {t("reset")}
+                  </button>
+                </div>
               </div>
             </div>
           </section>
@@ -563,19 +628,25 @@ export default function MafiaGame() {
                   type="button"
                   aria-label={t("close")}
                   onClick={() => setShowSaveInput(false)}
-                  className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 text-sm font-black text-zinc-300 hover:bg-white/10 active:scale-95 transition-all"
+                  className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 text-sm font-black text-zinc-300 hover:bg-white/10 active:scale-95 transition-all inline-flex items-center justify-center"
                 >
-                  ✕
+                  <Icon className="h-5 w-5">
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </Icon>
                 </button>
               </div>
 
               <div className="mt-4 space-y-3">
                 <input
+                  ref={saveInputRef}
                   placeholder={t("scenarioName")}
                   value={scenarioName}
                   onChange={(e) => setScenarioName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === " ") e.stopPropagation();
+                  }}
                   className="w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-sm outline-none focus:border-white/40 font-bold"
-                  autoFocus
                 />
 
                 <div className="flex gap-3">
@@ -627,7 +698,10 @@ export default function MafiaGame() {
                   }}
                   className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 text-sm font-black leading-none text-zinc-300 hover:bg-white/10 active:scale-95 transition-all inline-flex items-center justify-center"
                 >
-                  ✕
+                  <Icon className="h-5 w-5">
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </Icon>
                 </button>
               </div>
 
@@ -646,31 +720,42 @@ export default function MafiaGame() {
                       >
                         <button
                           type="button"
+                          onKeyDown={(e) => {
+                            if (e.key === " " && renamingScenarioId === s.id) {
+                              e.stopPropagation();
+                            }
+                          }}
                           onClick={() => {
+                            if (isRenaming) return;
                             loadScenario(s);
                             setShowManageScenarios(false);
                           }}
-                          className="min-w-0 flex-1 text-left"
+                          className={`min-w-0 flex-1 text-left ${isRenaming ? "cursor-default" : ""}`}
                         >
-                          <div className="flex items-center justify-between gap-3">
-                            {isRenaming ? (
-                              <input
-                                value={renameValue}
-                                onChange={(e) => setRenameValue(e.target.value)}
-                                placeholder={t("scenarioName")}
-                                className="w-full bg-black/20 border border-white/20 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-white/40"
-                                autoFocus
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            ) : (
-                              <div className="truncate text-sm font-black">
-                                {localizeDigits(s.name)}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center justify-between gap-3">
+                              {isRenaming ? (
+                                <input
+                                  ref={renameInputRef}
+                                  value={renameValue}
+                                  onChange={(e) => setRenameValue(e.target.value)}
+                                  placeholder={t("scenarioName")}
+                                  className="w-full bg-black/20 border border-white/20 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-white/40"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => {
+                                    if (e.key === " ") e.stopPropagation();
+                                  }}
+                                />
+                              ) : (
+                                <div className="truncate text-sm font-black">
+                                  {localizeDigits(s.name)}
+                                </div>
+                              )}
+                              <div className="shrink-0 inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-black text-zinc-300">
+                                <span className="text-mafia">{formatNumber(s.mafiasCount)}</span>
+                                <span className="text-zinc-500">/</span>
+                                <span className="text-citizen">{formatNumber(s.citizensCount)}</span>
                               </div>
-                            )}
-                            <div className="shrink-0 inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-black text-zinc-300">
-                              <span className="text-mafia">{formatNumber(s.mafiasCount)}</span>
-                              <span className="text-zinc-500">/</span>
-                              <span className="text-citizen">{formatNumber(s.citizensCount)}</span>
                             </div>
                           </div>
                         </button>
@@ -684,7 +769,7 @@ export default function MafiaGame() {
                               setRenamingScenarioId(null);
                               setRenameValue("");
                             }}
-                            className="h-10 w-10 rounded-2xl border border-white/10 bg-white text-black active:scale-95 transition-all inline-flex items-center justify-center"
+                            className="h-10 w-10 shrink-0 rounded-2xl border border-white/10 bg-white text-black active:scale-95 transition-all inline-flex items-center justify-center self-start"
                           >
                             <Icon className="h-5 w-5">
                               <path d="M20 6 9 17l-5-5" />
@@ -698,7 +783,7 @@ export default function MafiaGame() {
                               setRenamingScenarioId(s.id);
                               setRenameValue(s.name);
                             }}
-                            className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10 active:scale-95 transition-all inline-flex items-center justify-center"
+                            className="h-10 w-10 shrink-0 rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10 active:scale-95 transition-all inline-flex items-center justify-center"
                           >
                             <Icon className="h-5 w-5">
                               <path d="M12 20h9" />
@@ -711,12 +796,12 @@ export default function MafiaGame() {
                           type="button"
                           aria-label={t("delete")}
                           onClick={() => deleteScenario(s.id)}
-                          className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10 active:scale-95 transition-all inline-flex items-center justify-center"
+                          className="h-10 w-10 shrink-0 rounded-2xl border border-white/10 bg-white/5 text-zinc-400 hover:bg-red-500/20 hover:text-red-400 active:scale-95 transition-all inline-flex items-center justify-center"
                         >
                           <Icon className="h-5 w-5">
                             <path d="M3 6h18" />
-                            <path d="M8 6V4h8v2" />
-                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
                           </Icon>
                         </button>
                       </div>

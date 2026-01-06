@@ -32,5 +32,7 @@
   "defaultMafia": "Mafia",
   "defaultCitizen": "Citizen",
   "enterRoleName": "Enter role name",
-  "scenarioName": "Scenario name"
+  "scenarioName": "Scenario name",
+  "notes": "Notes",
+  "optional": "Optional"
 }
