@@ -58,7 +58,31 @@ export default function MafiaGame() {
   const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    // Unlock on first interaction
+    const initAudio = () => {
+      if (!nightAudioRef.current) {
+        nightAudioRef.current = new Audio("/night.mp3");
+        nightAudioRef.current.loop = true;
+        nightAudioRef.current.preload = "auto";
+      }
+      if (!bellAudioRef.current) {
+        bellAudioRef.current = new Audio("/bell.mp3");
+        bellAudioRef.current.preload = "auto";
+      }
+      if (!bellRepeatAudioRef.current) {
+        bellRepeatAudioRef.current = new Audio("/bell-repeat.mp3");
+        bellRepeatAudioRef.current.loop = true;
+        bellRepeatAudioRef.current.preload = "auto";
+      }
+
+      // Try to load
+      nightAudioRef.current.load();
+      bellAudioRef.current.load();
+      bellRepeatAudioRef.current.load();
+    };
+
+    initAudio();
+
+    // Unlock on first interaction as well
     const handleInteraction = () => {
       if (!audioContextRef.current) {
         const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -148,25 +172,22 @@ export default function MafiaGame() {
   }, [extraTime]);
 
   useEffect(() => {
-    const nightAudio = nightAudioRef.current;
     if (isNight) {
-      if (nightAudio) {
-        nightAudio.currentTime = 0;
-        nightAudio.play().catch(() => {});
+      if (nightAudioRef.current) {
+        nightAudioRef.current.currentTime = 0;
+        nightAudioRef.current.play().catch(() => {});
       }
     } else {
-      if (nightAudio) {
-        nightAudio.pause();
+      if (nightAudioRef.current) {
+        nightAudioRef.current.pause();
       }
     }
     return () => {
-      nightAudio?.pause();
+      nightAudioRef.current?.pause();
     };
   }, [isNight]);
 
   useEffect(() => {
-    const bellRepeatAudio = bellRepeatAudioRef.current;
-    const bellAudio = bellAudioRef.current;
     if (isSpeaking) {
       setCountdown(speechDuration);
 
@@ -175,25 +196,25 @@ export default function MafiaGame() {
           if (prev <= -extraTime) return prev;
           const next = prev - 1;
           if (next === extraTime) {
-            bellAudio?.play().catch(() => {});
+            bellAudioRef.current?.play().catch(() => {});
           } else if (next === 0) {
-            bellAudio?.play().catch(() => {});
+            bellAudioRef.current?.play().catch(() => {});
           } else if (next === -extraTime) {
-            bellRepeatAudio?.play().catch(() => {});
+            bellRepeatAudioRef.current?.play().catch(() => {});
           }
           return next;
         });
       }, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
-      bellRepeatAudio?.pause();
-      if (bellRepeatAudio) bellRepeatAudio.currentTime = 0;
+      bellRepeatAudioRef.current?.pause();
+      if (bellRepeatAudioRef.current) bellRepeatAudioRef.current.currentTime = 0;
       setCountdown(speechDuration);
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      bellRepeatAudio?.pause();
+      bellRepeatAudioRef.current?.pause();
     };
   }, [isSpeaking, speechDuration, extraTime]);
 
@@ -730,11 +751,6 @@ export default function MafiaGame() {
             </div>
           )}
         </main>
-        <div className="hidden" aria-hidden="true">
-          <audio ref={nightAudioRef} src="/night.mp3" loop preload="auto" />
-          <audio ref={bellAudioRef} src="/bell.mp3" preload="auto" />
-          <audio ref={bellRepeatAudioRef} src="/bell-repeat.mp3" loop preload="auto" />
-        </div>
       </div>
     );
   }
@@ -1133,12 +1149,6 @@ export default function MafiaGame() {
           </div>
         </div>
       )}
-
-      <div className="hidden" aria-hidden="true">
-        <audio ref={nightAudioRef} src="/night.mp3" loop preload="auto" />
-        <audio ref={bellAudioRef} src="/bell.mp3" preload="auto" />
-        <audio ref={bellRepeatAudioRef} src="/bell-repeat.mp3" loop preload="auto" />
-      </div>
     </div>
   );
 }
