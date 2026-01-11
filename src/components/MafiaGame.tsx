@@ -30,7 +30,6 @@ export default function MafiaGame() {
   const [showManageScenarios, setShowManageScenarios] = useState(false);
   const [renamingScenarioId, setRenamingScenarioId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-  const [importValue, setImportValue] = useState("");
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   
   // Game Controls State
@@ -541,9 +540,10 @@ export default function MafiaGame() {
     });
   };
 
-  const importData = () => {
+  const importData = async () => {
     try {
-      const data = JSON.parse(importValue);
+      const text = await navigator.clipboard.readText();
+      const data = JSON.parse(text);
       if (data.scenarios && Array.isArray(data.scenarios)) {
         setScenarios(data.scenarios);
         localStorage.setItem("scenarios", JSON.stringify(data.scenarios));
@@ -561,7 +561,6 @@ export default function MafiaGame() {
         localStorage.setItem("language", data.language);
       }
       setStatusMessage({ text: t("importSuccess"), type: "success" });
-      setImportValue("");
       setTimeout(() => setStatusMessage(null), 3000);
     } catch {
       setStatusMessage({ text: t("importError"), type: "error" });
@@ -1061,9 +1060,9 @@ export default function MafiaGame() {
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
           />
 
-          <div className="absolute inset-x-0 bottom-0 safe-pb px-6 pb-6">
-            <div className="glass rounded-3xl border border-white/10 p-5 shadow-2xl animate-slide-up">
-              <div className="flex items-center justify-between gap-3">
+          <div className="absolute inset-x-0 bottom-0 safe-pb px-6 pb-6 max-h-full flex flex-col justify-end">
+            <div className="glass rounded-3xl border border-white/10 p-5 shadow-2xl animate-slide-up flex flex-col max-h-[90dvh]">
+              <div className="flex items-center justify-between gap-3 shrink-0">
                 <div className="text-sm font-black tracking-tight">{t("savedScenarios")}</div>
                 <button
                   type="button"
@@ -1082,8 +1081,9 @@ export default function MafiaGame() {
                 </button>
               </div>
 
-              <div className="mt-4 space-y-2 max-h-[55dvh] overflow-auto pr-1">
-                {scenarios.length === 0 ? (
+              <div className="mt-4 overflow-y-auto pr-1 flex-1">
+                <div className="space-y-2">
+                  {scenarios.length === 0 ? (
                   <div className="py-8 text-center text-sm font-bold text-zinc-500">
                     {t("noSavedScenarios")}
                   </div>
@@ -1201,29 +1201,18 @@ export default function MafiaGame() {
                   {t("export")}
                 </button>
 
-                <div className="space-y-2">
-                  <div className="relative">
-                    <textarea
-                      value={importValue}
-                      onChange={(e) => setImportValue(e.target.value)}
-                      placeholder={t("importPlaceholder")}
-                      className="w-full h-24 bg-black/20 border border-white/10 rounded-2xl px-4 py-3 text-xs font-bold outline-none focus:border-white/30 transition-all resize-none"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={importData}
-                    disabled={!importValue.trim()}
-                    className="w-full h-12 rounded-2xl border border-white/10 bg-white/5 text-white font-black text-sm hover:bg-white/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Icon className="h-5 w-5">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </Icon>
-                    {t("import")}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={importData}
+                  className="w-full h-12 rounded-2xl border border-white/10 bg-white/5 text-white font-black text-sm hover:bg-white/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
+                  <Icon className="h-5 w-5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </Icon>
+                  {t("import")}
+                </button>
 
                 {statusMessage && (
                   <div
@@ -1235,6 +1224,7 @@ export default function MafiaGame() {
                   </div>
                 )}
               </div>
+            </div>
             </div>
           </div>
         </div>
