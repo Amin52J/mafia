@@ -30,6 +30,31 @@ export default function MafiaGame() {
   const [showManageScenarios, setShowManageScenarios] = useState(false);
   const [renamingScenarioId, setRenamingScenarioId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  
+  // Game Controls State
+  const [isNight, setIsNight] = useState(false);
+  const [speechDuration, setSpeechDuration] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("speechDuration");
+      return saved ? parseInt(saved, 10) : 40;
+    }
+    return 40;
+  });
+  const [extraTime, setExtraTime] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("extraTime");
+      return saved ? parseInt(saved, 10) : 10;
+    }
+    return 10;
+  });
+  const [countdown, setCountdown] = useState(speechDuration);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  const nightAudioRef = useRef<HTMLAudioElement | null>(null);
+  const bellAudioRef = useRef<HTMLAudioElement | null>(null);
+  const bellRepeatAudioRef = useRef<HTMLAudioElement | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
   const saveInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
@@ -71,6 +96,102 @@ export default function MafiaGame() {
       document.body.style.overflow = "";
     };
   }, [showSaveInput, showManageScenarios]);
+
+  useEffect(() => {
+    localStorage.setItem("speechDuration", speechDuration.toString());
+  }, [speechDuration]);
+
+  useEffect(() => {
+    localStorage.setItem("extraTime", extraTime.toString());
+  }, [extraTime]);
+
+  useEffect(() => {
+    if (isNight) {
+      if (!nightAudioRef.current) {
+        nightAudioRef.current = new Audio("/night.mp3");
+        nightAudioRef.current.loop = true;
+      }
+      nightAudioRef.current.currentTime = 0;
+      nightAudioRef.current.play().catch(() => {});
+    } else {
+      if (nightAudioRef.current) {
+        nightAudioRef.current.pause();
+      }
+    }
+    return () => {
+      nightAudioRef.current?.pause();
+    };
+  }, [isNight]);
+
+  useEffect(() => {
+    if (isSpeaking) {
+      setCountdown(speechDuration);
+      if (!bellAudioRef.current) bellAudioRef.current = new Audio("/bell.mp3");
+      if (!bellRepeatAudioRef.current) {
+        bellRepeatAudioRef.current = new Audio("/bell-repeat.mp3");
+        bellRepeatAudioRef.current.loop = true;
+      }
+
+      timerRef.current = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= -extraTime) return prev;
+          const next = prev - 1;
+          if (next === extraTime) {
+            bellAudioRef.current?.play().catch(() => {});
+          } else if (next === 0) {
+            bellAudioRef.current?.play().catch(() => {});
+          } else if (next === -extraTime) {
+            bellRepeatAudioRef.current?.play().catch(() => {});
+          }
+          return next;
+        });
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+      bellRepeatAudioRef.current?.pause();
+      if (bellRepeatAudioRef.current) bellRepeatAudioRef.current.currentTime = 0;
+      setCountdown(speechDuration);
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      bellRepeatAudioRef.current?.pause();
+    };
+  }, [isSpeaking, speechDuration, extraTime]);
+
+  const delocalizeDigits = (text: string) => {
+    const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
+    let normalized = text;
+    for (let i = 0; i <= 9; i++) {
+      normalized = normalized.replace(persianDigits[i], i.toString());
+    }
+    return normalized;
+  };
+
+  const handleSpeechDurationChange = (val: string) => {
+    const normalized = delocalizeDigits(val);
+    const num = parseInt(normalized.replace(/\D/g, ""), 10);
+    if (!isNaN(num)) {
+      setSpeechDuration(num);
+      if (!isSpeaking) setCountdown(num);
+    } else if (normalized === "") {
+      setSpeechDuration(0);
+      if (!isSpeaking) setCountdown(0);
+    }
+  };
+
+  const handleExtraTimeChange = (val: string) => {
+    const normalized = delocalizeDigits(val);
+    const num = parseInt(normalized.replace(/\D/g, ""), 10);
+    if (!isNaN(num)) {
+      setExtraTime(num);
+    } else if (normalized === "") {
+      setExtraTime(0);
+    }
+  };
+
+  const toggleNight = () => setIsNight(!isNight);
+  const toggleSpeaking = () => setIsSpeaking(!isSpeaking);
 
   useEffect(() => {
     const saved = localStorage.getItem("scenarios");
@@ -291,7 +412,8 @@ export default function MafiaGame() {
     setIsStarted(false);
     setCards([]);
     setFlippedCardId(null);
-    resetSetup();
+    setIsNight(false);
+    setIsSpeaking(false);
   };
 
   const suggestedScenarios = scenarios.filter(
@@ -368,7 +490,7 @@ export default function MafiaGame() {
                     <div className="absolute inset-0 glass rounded-3xl border border-white/10 flex flex-col items-center justify-center backface-hidden shadow-2xl overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50" />
                       <div className="relative z-10 flex flex-col items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-black text-zinc-500">
+                        <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-black text-zinc-500 tabular-nums">
                           {formatNumber(card.id + 1)}
                         </div>
                         <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">
@@ -404,6 +526,101 @@ export default function MafiaGame() {
             <div className="w-full max-w-sm flex flex-col items-center animate-zoom-in">
               <div className="mb-8 text-4xl">🎭</div>
               
+              <div className="w-full space-y-4 mb-8">
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={toggleNight}
+                    className={`py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
+                      isNight ? "bg-white text-black" : "bg-zinc-800 text-white border border-white/10"
+                    }`}
+                  >
+                    {isNight ? (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                        {language === "en" ? t("day").toUpperCase() : t("day")}
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                        {language === "en" ? t("night").toUpperCase() : t("night")}
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={toggleSpeaking}
+                    className={`py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
+                      isSpeaking ? "bg-red-500 text-white" : "bg-zinc-800 text-white border border-white/10"
+                    }`}
+                  >
+                    {language === "en" 
+                      ? (isSpeaking ? t("stop").toUpperCase() : t("speak").toUpperCase())
+                      : (isSpeaking ? t("stop") : t("speak"))
+                    }
+                  </button>
+                </div>
+
+                <div className="glass rounded-3xl border border-white/10 p-6 flex flex-col items-center gap-4">
+                  <div className={`text-6xl font-black tabular-nums transition-colors duration-300 ${
+                    countdown > extraTime ? "text-green-500" : countdown >= 0 ? "text-yellow-400" : "text-red-500"
+                  }`}>
+                    {formatNumber(countdown)}
+                  </div>
+                  
+                  <div className="w-full grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block text-center">
+                        {language === "en" ? t("speechDuration").toUpperCase() : t("speechDuration")}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={formatNumber(speechDuration)}
+                          onChange={(e) => handleSpeechDurationChange(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-center text-white font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all tabular-nums"
+                        />
+                        {language === "en" && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-500 uppercase">
+                            s
+                          </span>
+                        )}
+                        {language === "fa" && (
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-500">
+                            ثانیه
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block text-center">
+                        {language === "en" ? t("extraTime").toUpperCase() : t("extraTime")}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={formatNumber(extraTime)}
+                          onChange={(e) => handleExtraTimeChange(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-center text-white font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all tabular-nums"
+                        />
+                        {language === "en" && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-500 uppercase">
+                            s
+                          </span>
+                        )}
+                        {language === "fa" && (
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-500">
+                            ثانیه
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {scenarioNotes && (
                 <div className="w-full mb-8 glass rounded-3xl border border-white/10 p-6">
                   <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-3 text-center">
@@ -760,7 +977,7 @@ export default function MafiaGame() {
                                   {localizeDigits(s.name)}
                                 </div>
                               )}
-                              <div className="shrink-0 inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-black text-zinc-300">
+                      <div className="shrink-0 inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-black text-zinc-300 tabular-nums">
                                 <span className="text-mafia">{formatNumber(s.mafiasCount)}</span>
                                 <span className="text-zinc-500">/</span>
                                 <span className="text-citizen">{formatNumber(s.citizensCount)}</span>

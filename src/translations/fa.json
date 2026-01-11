@@ -19,7 +19,7 @@
   "decrease": "کاهش",
   "reset": "بازنشانی",
   "start": "شروع",
-  "restart": "شروع مجدد",
+  "restart": "شروع مجدد بازی",
   "seen": "دیدم",
   "suggestedScenarios": "سناریوهای پیشنهادی",
   "manageScenarios": "مدیریت سناریوها",
@@ -34,5 +34,11 @@
   "enterRoleName": "نام نقش را وارد کنید",
   "scenarioName": "نام سناریو",
   "notes": "یادداشت‌ها",
-  "optional": "اختیاری"
+  "optional": "اختیاری",
+  "night": "شب",
+  "day": "روز",
+  "speak": "صحبت کن",
+  "stop": "تمام",
+  "speechDuration": "زمان صحبت",
+  "extraTime": "زمان اضافه"
 }

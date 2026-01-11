@@ -34,5 +34,11 @@
   "enterRoleName": "Enter role name",
   "scenarioName": "Scenario name",
   "notes": "Notes",
-  "optional": "Optional"
+  "optional": "Optional",
+  "night": "Night",
+  "day": "Day",
+  "speak": "Speak",
+  "stop": "Stop",
+  "speechDuration": "speech duration",
+  "extraTime": "extra time"
 }
