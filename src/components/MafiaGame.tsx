@@ -404,14 +404,17 @@ export default function MafiaGame() {
     setIsStarted(true);
     setFlippedCardId(null);
 
-    // Unlock audio for iOS Safari PWA
+    // Unlock audio for iOS Safari PWA silently
     [nightAudioRef.current, bellAudioRef.current, bellRepeatAudioRef.current].forEach(audio => {
       if (audio) {
+        const wasMuted = audio.muted;
+        audio.muted = true;
         audio.play().then(() => {
           audio.pause();
           audio.currentTime = 0;
+          audio.muted = wasMuted;
         }).catch(() => {
-          // Silent catch: if it fails, it might still be unlocked by the next interaction
+          audio.muted = wasMuted;
         });
       }
     });
