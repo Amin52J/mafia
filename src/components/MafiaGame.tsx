@@ -30,6 +30,8 @@ export default function MafiaGame() {
   const [showManageScenarios, setShowManageScenarios] = useState(false);
   const [renamingScenarioId, setRenamingScenarioId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [importValue, setImportValue] = useState("");
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   
   // Game Controls State
   const [isNight, setIsNight] = useState(false);
@@ -524,6 +526,47 @@ export default function MafiaGame() {
     setFlippedCardId(null);
     setIsNight(false);
     setIsSpeaking(false);
+  };
+
+  const exportData = () => {
+    const data = {
+      scenarios,
+      speechDuration,
+      extraTime,
+      language
+    };
+    navigator.clipboard.writeText(JSON.stringify(data)).then(() => {
+      setStatusMessage({ text: t("exportSuccess"), type: "success" });
+      setTimeout(() => setStatusMessage(null), 3000);
+    });
+  };
+
+  const importData = () => {
+    try {
+      const data = JSON.parse(importValue);
+      if (data.scenarios && Array.isArray(data.scenarios)) {
+        setScenarios(data.scenarios);
+        localStorage.setItem("scenarios", JSON.stringify(data.scenarios));
+      }
+      if (typeof data.speechDuration === "number") {
+        setSpeechDuration(data.speechDuration);
+        localStorage.setItem("speechDuration", data.speechDuration.toString());
+      }
+      if (typeof data.extraTime === "number") {
+        setExtraTime(data.extraTime);
+        localStorage.setItem("extraTime", data.extraTime.toString());
+      }
+      if (typeof data.language === "string") {
+        setLanguage(data.language);
+        localStorage.setItem("language", data.language);
+      }
+      setStatusMessage({ text: t("importSuccess"), type: "success" });
+      setImportValue("");
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch {
+      setStatusMessage({ text: t("importError"), type: "error" });
+      setTimeout(() => setStatusMessage(null), 3000);
+    }
   };
 
   const suggestedScenarios = scenarios.filter(
@@ -1143,6 +1186,55 @@ export default function MafiaGame() {
                       </div>
                     );
                   })
+                )}
+              </div>
+
+              <div className="mt-6 space-y-4 border-t border-white/10 pt-6">
+                <button
+                  type="button"
+                  onClick={exportData}
+                  className="w-full h-12 rounded-2xl bg-white text-black font-black text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
+                  <Icon className="h-5 w-5">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                    <polyline points="16 6 12 2 8 6" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </Icon>
+                  {t("export")}
+                </button>
+
+                <div className="space-y-2">
+                  <div className="relative">
+                    <textarea
+                      value={importValue}
+                      onChange={(e) => setImportValue(e.target.value)}
+                      placeholder={t("importPlaceholder")}
+                      className="w-full h-24 bg-black/20 border border-white/10 rounded-2xl px-4 py-3 text-xs font-bold outline-none focus:border-white/30 transition-all resize-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={importData}
+                    disabled={!importValue.trim()}
+                    className="w-full h-12 rounded-2xl border border-white/10 bg-white/5 text-white font-black text-sm hover:bg-white/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Icon className="h-5 w-5">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </Icon>
+                    {t("import")}
+                  </button>
+                </div>
+
+                {statusMessage && (
+                  <div
+                    className={`text-center text-sm font-bold animate-fade-in ${
+                      statusMessage.type === "success" ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {statusMessage.text}
+                  </div>
                 )}
               </div>
             </div>

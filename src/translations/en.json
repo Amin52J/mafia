@@ -40,5 +40,11 @@
   "speak": "Speak",
   "stop": "Stop",
   "speechDuration": "speech duration",
-  "extraTime": "extra time"
+  "extraTime": "extra time",
+  "export": "Export Data",
+  "import": "Import Data",
+  "exportSuccess": "Data copied to clipboard",
+  "importSuccess": "Data imported successfully",
+  "importError": "Invalid data format",
+  "importPlaceholder": "Paste data here..."
 }

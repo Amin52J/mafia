@@ -40,5 +40,11 @@
   "speak": "صحبت کن",
   "stop": "تمام",
   "speechDuration": "زمان صحبت",
-  "extraTime": "زمان اضافه"
+  "extraTime": "زمان اضافه",
+  "export": "خروجی گرفتن از داده‌ها",
+  "import": "وارد کردن داده‌ها",
+  "exportSuccess": "داده‌ها در حافظه کپی شد",
+  "importSuccess": "داده‌ها با موفقیت وارد شد",
+  "importError": "فرمت داده‌ها نامعتبر است",
+  "importPlaceholder": "داده‌ها را اینجا بچسبانید..."
 }
