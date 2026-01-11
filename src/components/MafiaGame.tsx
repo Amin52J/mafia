@@ -31,6 +31,7 @@ export default function MafiaGame() {
   const [renamingScenarioId, setRenamingScenarioId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [isExported, setIsExported] = useState(false);
   
   // Game Controls State
   const [isNight, setIsNight] = useState(false);
@@ -536,7 +537,11 @@ export default function MafiaGame() {
     };
     navigator.clipboard.writeText(JSON.stringify(data)).then(() => {
       setStatusMessage({ text: t("exportSuccess"), type: "success" });
-      setTimeout(() => setStatusMessage(null), 3000);
+      setIsExported(true);
+      setTimeout(() => {
+        setStatusMessage(null);
+        setIsExported(false);
+      }, 3000);
     });
   };
 
@@ -1191,14 +1196,24 @@ export default function MafiaGame() {
                 <button
                   type="button"
                   onClick={exportData}
-                  className="w-full h-12 rounded-2xl bg-white text-black font-black text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className={`w-full h-12 rounded-2xl font-black text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 ${
+                    isExported 
+                      ? "bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]" 
+                      : "bg-white text-black"
+                  }`}
                 >
                   <Icon className="h-5 w-5">
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                    <polyline points="16 6 12 2 8 6" />
-                    <line x1="12" y1="2" x2="12" y2="15" />
+                    {isExported ? (
+                      <path d="M20 6 9 17l-5-5" />
+                    ) : (
+                      <>
+                        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                        <polyline points="16 6 12 2 8 6" />
+                        <line x1="12" y1="2" x2="12" y2="15" />
+                      </>
+                    )}
                   </Icon>
-                  {t("export")}
+                  {isExported ? t("exportSuccess") : t("export")}
                 </button>
 
                 <button
