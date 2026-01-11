@@ -55,6 +55,27 @@ export default function MafiaGame() {
   const bellRepeatAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  useEffect(() => {
+    // Preload audio files on mount to ensure they are downloaded and cached immediately
+    if (!nightAudioRef.current) {
+      nightAudioRef.current = new Audio("/night.mp3");
+      nightAudioRef.current.loop = true;
+      nightAudioRef.current.preload = "auto";
+      nightAudioRef.current.load();
+    }
+    if (!bellAudioRef.current) {
+      bellAudioRef.current = new Audio("/bell.mp3");
+      bellAudioRef.current.preload = "auto";
+      bellAudioRef.current.load();
+    }
+    if (!bellRepeatAudioRef.current) {
+      bellRepeatAudioRef.current = new Audio("/bell-repeat.mp3");
+      bellRepeatAudioRef.current.loop = true;
+      bellRepeatAudioRef.current.preload = "auto";
+      bellRepeatAudioRef.current.load();
+    }
+  }, []);
+
   const saveInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
@@ -107,12 +128,10 @@ export default function MafiaGame() {
 
   useEffect(() => {
     if (isNight) {
-      if (!nightAudioRef.current) {
-        nightAudioRef.current = new Audio("/night.mp3");
-        nightAudioRef.current.loop = true;
+      if (nightAudioRef.current) {
+        nightAudioRef.current.currentTime = 0;
+        nightAudioRef.current.play().catch(() => {});
       }
-      nightAudioRef.current.currentTime = 0;
-      nightAudioRef.current.play().catch(() => {});
     } else {
       if (nightAudioRef.current) {
         nightAudioRef.current.pause();
@@ -126,11 +145,6 @@ export default function MafiaGame() {
   useEffect(() => {
     if (isSpeaking) {
       setCountdown(speechDuration);
-      if (!bellAudioRef.current) bellAudioRef.current = new Audio("/bell.mp3");
-      if (!bellRepeatAudioRef.current) {
-        bellRepeatAudioRef.current = new Audio("/bell-repeat.mp3");
-        bellRepeatAudioRef.current.loop = true;
-      }
 
       timerRef.current = setInterval(() => {
         setCountdown((prev) => {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mafia-v4';
+const CACHE_NAME = 'mafia-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
@@ -50,17 +50,30 @@ self.addEventListener('fetch', (event) => {
             return cachedResponse;
           }
 
-          return cachedResponse.arrayBuffer().then((arrayBuffer) => {
+          return cachedResponse.blob().then((blob) => {
             const match = range.match(/bytes=(\d+)-(\d+)?/);
             if (!match) return cachedResponse;
 
             const start = parseInt(match[1], 10);
-            const end = match[2] ? parseInt(match[2], 10) : arrayBuffer.byteLength - 1;
-            const chunk = arrayBuffer.slice(start, end + 1);
+            const end = match[2] ? parseInt(match[2], 10) : blob.size - 1;
+
+            if (start >= blob.size || (match[2] && end >= blob.size) || start > end) {
+              return new Response(null, {
+                status: 416,
+                statusText: 'Range Not Satisfiable',
+                headers: { 'Content-Range': `bytes */${blob.size}` },
+              });
+            }
+
+            const chunk = blob.slice(start, end + 1);
 
             const responseHeaders = new Headers(cachedResponse.headers);
-            responseHeaders.set('Content-Range', `bytes ${start}-${end}/${arrayBuffer.byteLength}`);
-            responseHeaders.set('Content-Length', chunk.byteLength);
+            responseHeaders.set('Content-Range', `bytes ${start}-${end}/${blob.size}`);
+            responseHeaders.set('Content-Length', chunk.size);
+            responseHeaders.set('Accept-Ranges', 'bytes');
+            if (!responseHeaders.has('Content-Type')) {
+              responseHeaders.set('Content-Type', 'audio/mpeg');
+            }
 
             return new Response(chunk, {
               status: 206,
