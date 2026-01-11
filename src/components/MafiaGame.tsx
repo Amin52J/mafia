@@ -55,25 +55,70 @@ export default function MafiaGame() {
   const bellRepeatAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const audioContextRef = useRef<AudioContext | null>(null);
+
   useEffect(() => {
-    // Preload audio files on mount to ensure they are downloaded and cached immediately
-    if (!nightAudioRef.current) {
-      nightAudioRef.current = new Audio("/night.mp3");
-      nightAudioRef.current.loop = true;
-      nightAudioRef.current.preload = "auto";
+    const initAudio = () => {
+      if (!nightAudioRef.current) {
+        nightAudioRef.current = new Audio("/night.mp3");
+        nightAudioRef.current.loop = true;
+        nightAudioRef.current.preload = "auto";
+      }
+      if (!bellAudioRef.current) {
+        bellAudioRef.current = new Audio("/bell.mp3");
+        bellAudioRef.current.preload = "auto";
+      }
+      if (!bellRepeatAudioRef.current) {
+        bellRepeatAudioRef.current = new Audio("/bell-repeat.mp3");
+        bellRepeatAudioRef.current.loop = true;
+        bellRepeatAudioRef.current.preload = "auto";
+      }
+
+      // Try to load
       nightAudioRef.current.load();
-    }
-    if (!bellAudioRef.current) {
-      bellAudioRef.current = new Audio("/bell.mp3");
-      bellAudioRef.current.preload = "auto";
       bellAudioRef.current.load();
-    }
-    if (!bellRepeatAudioRef.current) {
-      bellRepeatAudioRef.current = new Audio("/bell-repeat.mp3");
-      bellRepeatAudioRef.current.loop = true;
-      bellRepeatAudioRef.current.preload = "auto";
       bellRepeatAudioRef.current.load();
-    }
+    };
+
+    initAudio();
+
+    // Unlock on first interaction as well
+    const handleInteraction = () => {
+      if (!audioContextRef.current) {
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioContextClass) {
+          audioContextRef.current = new AudioContextClass();
+        }
+      }
+      if (audioContextRef.current?.state === "suspended") {
+        audioContextRef.current.resume();
+      }
+
+      [nightAudioRef.current, bellAudioRef.current, bellRepeatAudioRef.current].forEach(audio => {
+        if (audio) {
+          const wasMuted = audio.muted;
+          audio.muted = true;
+          audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = wasMuted;
+          }).catch(() => {
+            audio.muted = wasMuted;
+          });
+        }
+      });
+
+      document.removeEventListener("touchstart", handleInteraction);
+      document.removeEventListener("click", handleInteraction);
+    };
+
+    document.addEventListener("touchstart", handleInteraction);
+    document.addEventListener("click", handleInteraction);
+
+    return () => {
+      document.removeEventListener("touchstart", handleInteraction);
+      document.removeEventListener("click", handleInteraction);
+    };
   }, []);
 
   const saveInputRef = useRef<HTMLInputElement>(null);
@@ -204,8 +249,40 @@ export default function MafiaGame() {
     }
   };
 
-  const toggleNight = () => setIsNight(!isNight);
-  const toggleSpeaking = () => setIsSpeaking(!isSpeaking);
+  const toggleNight = () => {
+    const nextNight = !isNight;
+    setIsNight(nextNight);
+    // Directly handle audio in click handler for iOS Safari/PWA
+    if (nextNight) {
+      if (nightAudioRef.current) {
+        nightAudioRef.current.currentTime = 0;
+        nightAudioRef.current.play().catch(() => {});
+      }
+    } else {
+      nightAudioRef.current?.pause();
+    }
+  };
+
+  const toggleSpeaking = () => {
+    const nextSpeaking = !isSpeaking;
+    setIsSpeaking(nextSpeaking);
+    // Pre-unlock bell sounds on click
+    if (nextSpeaking) {
+      [bellAudioRef.current, bellRepeatAudioRef.current].forEach(audio => {
+        if (audio) {
+          const wasMuted = audio.muted;
+          audio.muted = true;
+          audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = wasMuted;
+          }).catch(() => {
+            audio.muted = wasMuted;
+          });
+        }
+      });
+    }
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("scenarios");
@@ -404,7 +481,11 @@ export default function MafiaGame() {
     setIsStarted(true);
     setFlippedCardId(null);
 
-    // Unlock audio for iOS Safari PWA silently
+    // Unlock audio and resume context for iOS Safari PWA
+    if (audioContextRef.current?.state === "suspended") {
+      audioContextRef.current.resume();
+    }
+
     [nightAudioRef.current, bellAudioRef.current, bellRepeatAudioRef.current].forEach(audio => {
       if (audio) {
         const wasMuted = audio.muted;

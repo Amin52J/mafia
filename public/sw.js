@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mafia-v7';
+const CACHE_NAME = 'mafia-v8';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
@@ -45,75 +45,42 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
-          return cachedResponse.blob().then((blob) => {
-            const range = event.request.headers.get('range');
-            
-            // If no range request, return full blob with Accept-Ranges
-            if (!range) {
-              return new Response(blob, {
-                status: 200,
-                statusText: 'OK',
-                headers: {
-                  'Content-Type': 'audio/mpeg',
-                  'Content-Length': blob.size,
-                  'Accept-Ranges': 'bytes',
-                },
-              });
-            }
+          const range = event.request.headers.get('range');
+          
+          if (!range) {
+            return cachedResponse;
+          }
 
+          return cachedResponse.arrayBuffer().then((buffer) => {
             const match = range.match(/bytes=(\d+)-(\d+)?/);
             if (!match) {
-              // If range header is malformed, return full blob as fallback
-              return new Response(blob, {
+              return new Response(buffer, {
                 status: 200,
-                statusText: 'OK',
                 headers: {
                   'Content-Type': 'audio/mpeg',
-                  'Content-Length': blob.size,
                   'Accept-Ranges': 'bytes',
                 },
               });
             }
 
             const start = parseInt(match[1], 10);
-            const end = match[2] ? parseInt(match[2], 10) : blob.size - 1;
-
-            if (start >= blob.size || end >= blob.size || start > end) {
-              return new Response(null, {
-                status: 416,
-                statusText: 'Range Not Satisfiable',
-                headers: { 
-                  'Content-Range': `bytes */${blob.size}`,
-                  'Accept-Ranges': 'bytes',
-                },
-              });
-            }
-
-            const chunk = blob.slice(start, end + 1);
+            const end = match[2] ? parseInt(match[2], 10) : buffer.byteLength - 1;
+            const chunk = buffer.slice(start, end + 1);
 
             return new Response(chunk, {
               status: 206,
               statusText: 'Partial Content',
               headers: {
                 'Content-Type': 'audio/mpeg',
-                'Content-Range': `bytes ${start}-${end}/${blob.size}`,
-                'Content-Length': chunk.size,
+                'Content-Range': `bytes ${start}-${end}/${buffer.byteLength}`,
+                'Content-Length': chunk.byteLength,
                 'Accept-Ranges': 'bytes',
               },
             });
           });
         }
 
-        // Fallback to network if not in cache
-        return fetch(event.request).then((networkResponse) => {
-          if (networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        });
+        return fetch(event.request);
       })
     );
   } else {
