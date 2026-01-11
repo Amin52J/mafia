@@ -846,19 +846,17 @@ export default function MafiaGame() {
             />
           </div>
 
-          {scenarios.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowManageScenarios(true)}
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold leading-none text-zinc-200 hover:bg-white/10 transition-all active:scale-95 inline-flex items-center justify-center gap-2"
-            >
-              <Icon className="h-5 w-5">
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-              </Icon>
-              {t("manageScenarios")}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setShowManageScenarios(true)}
+            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold leading-none text-zinc-200 hover:bg-white/10 transition-all active:scale-95 inline-flex items-center justify-center gap-2"
+          >
+            <Icon className="h-5 w-5">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </Icon>
+            {t("manageScenarios")}
+          </button>
 
           {suggestedScenarios.length > 0 && (
             <div className="space-y-3 animate-fade-in">
