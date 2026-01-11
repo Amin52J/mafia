@@ -403,6 +403,18 @@ export default function MafiaGame() {
     setCards(shuffled);
     setIsStarted(true);
     setFlippedCardId(null);
+
+    // Unlock audio for iOS Safari PWA
+    [nightAudioRef.current, bellAudioRef.current, bellRepeatAudioRef.current].forEach(audio => {
+      if (audio) {
+        audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        }).catch(() => {
+          // Silent catch: if it fails, it might still be unlocked by the next interaction
+        });
+      }
+    });
   };
 
   const flipCard = (id: number) => {
