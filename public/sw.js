@@ -1,9 +1,12 @@
-const CACHE_NAME = 'mafia-v9';
+const CACHE_NAME = 'mafia-v8';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
   '/icon-192.svg',
   '/icon-512.svg',
+  '/bell.mp3',
+  '/bell-repeat.mp3',
+  '/night.mp3',
 ];
 
 // Install event - cache core assets
@@ -38,9 +41,48 @@ self.addEventListener('fetch', (event) => {
   const isAudio = url.pathname.endsWith('.mp3');
 
   if (isAudio) {
-    // Always fetch audio from the network to avoid cache-related playback issues
-    event.respondWith(fetch(event.request));
-    return;
+    // Cache-First strategy for audio, with Range request support
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          const range = event.request.headers.get('range');
+          
+          if (!range) {
+            return cachedResponse;
+          }
+
+          return cachedResponse.arrayBuffer().then((buffer) => {
+            const match = range.match(/bytes=(\d+)-(\d+)?/);
+            if (!match) {
+              return new Response(buffer, {
+                status: 200,
+                headers: {
+                  'Content-Type': 'audio/mpeg',
+                  'Accept-Ranges': 'bytes',
+                },
+              });
+            }
+
+            const start = parseInt(match[1], 10);
+            const end = match[2] ? parseInt(match[2], 10) : buffer.byteLength - 1;
+            const chunk = buffer.slice(start, end + 1);
+
+            return new Response(chunk, {
+              status: 206,
+              statusText: 'Partial Content',
+              headers: {
+                'Content-Type': 'audio/mpeg',
+                'Content-Range': `bytes ${start}-${end}/${buffer.byteLength}`,
+                'Content-Length': chunk.byteLength,
+                'Accept-Ranges': 'bytes',
+              },
+            });
+          });
+        }
+
+        return fetch(event.request);
+      })
+    );
   } else {
     // Stale-While-Revalidate strategy for other assets
     event.respondWith(
