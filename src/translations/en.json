@@ -46,5 +46,6 @@
   "exportSuccess": "Data copied to clipboard",
   "importSuccess": "Data imported successfully",
   "importError": "Invalid data format",
-  "tapToEnableAudio": "Tap to enable audio"
+  "tapToEnableAudio": "Tap to enable audio",
+  "iosAudioHelp": "if you don't hear the sound of the music or the bell, please lock and unlock your phone to fix the issue or alternatively open the app in a browser."
 }

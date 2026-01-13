@@ -31,6 +31,8 @@ export default function MafiaGame() {
   const [renamingScenarioId, setRenamingScenarioId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [showIOSAudioMessage, setShowIOSAudioMessage] = useState(false);
+  const hasShownIOSAudioMessageRef = useRef(false);
   const [isExported, setIsExported] = useState(false);
   
   // Game Controls State
@@ -114,6 +116,15 @@ export default function MafiaGame() {
       }
     }
     isAudioUnlockedRef.current = true;
+  }, []);
+
+  const triggerIOSAudioHelp = useCallback(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
+    if (isIOS && !hasShownIOSAudioMessageRef.current) {
+      setShowIOSAudioMessage(true);
+      hasShownIOSAudioMessageRef.current = true;
+      setTimeout(() => setShowIOSAudioMessage(false), 8000);
+    }
   }, []);
 
   useEffect(() => {
@@ -311,6 +322,7 @@ export default function MafiaGame() {
   };
 
   const toggleNight = () => {
+    triggerIOSAudioHelp();
     const nextNight = !isNight;
     setIsNight(nextNight);
     // Directly handle audio in click handler for iOS Safari/PWA
@@ -326,6 +338,7 @@ export default function MafiaGame() {
   };
 
   const toggleSpeaking = () => {
+    triggerIOSAudioHelp();
     const nextSpeaking = !isSpeaking;
     setIsSpeaking(nextSpeaking);
     // Pre-unlock sounds on click
@@ -1258,6 +1271,13 @@ export default function MafiaGame() {
               </div>
             </div>
             </div>
+          </div>
+        </div>
+      )}
+      {showIOSAudioMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-up w-[90%] max-w-sm pointer-events-none">
+          <div className="px-6 py-4 rounded-3xl font-black text-xs shadow-2xl border border-white/10 glass-dark text-zinc-100 text-center leading-relaxed backdrop-blur-xl">
+            {t("iosAudioHelp")}
           </div>
         </div>
       )}
