@@ -78,9 +78,31 @@ export default function MafiaGame() {
 
   const handleAudioUnlock = useCallback(async (skipElements: (HTMLAudioElement | null)[] = []) => {
     // On Chrome, we only need to do this once.
-    // On iOS, we might need to do it again after interruptions, but usually once per session is okay.
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
+    // On iOS, we might need to do it again after interruptions, and we need to be more aggressive.
+    const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
     if (isAudioUnlockedRef.current && !isIOS) return;
+
+    // iOS Aggressive Poke: Wake up the AudioContext session even if we primarily use HTMLAudioElement.
+    // This helps "jiggle" the OS audio session in PWAs.
+    if (isIOS) {
+      try {
+        const AudioContextClass = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          if (ctx.state === "suspended") await ctx.resume();
+          const buffer = ctx.createBuffer(1, 1, 22050);
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          source.connect(ctx.destination);
+          source.start();
+          setTimeout(() => {
+            ctx.close().catch(() => {});
+          }, 1000);
+        }
+      } catch (e) {
+        console.warn("AudioContext poke failed:", e);
+      }
+    }
 
     const audios = [
       nightAudioRef.current,
@@ -91,24 +113,35 @@ export default function MafiaGame() {
 
     for (const audio of audios) {
       if (audio && !skipElements.includes(audio)) {
+        const isSilentKeeper = audio === silentAudioRef.current;
+        
         // Skip if already playing and unmuted (likely currently in use)
-        if (!audio.paused && !audio.muted && audio !== silentAudioRef.current) continue;
-        // Skip silent keeper if already playing
-        if (audio === silentAudioRef.current && !audio.paused) continue;
+        if (!audio.paused && !audio.muted && !isSilentKeeper) continue;
+        
+        // For silent keeper, if it's already "playing" we usually skip, 
+        // but on iOS we might want to re-ensure it's active.
+        if (isSilentKeeper && !audio.paused && !isIOS) continue;
 
         const wasMuted = audio.muted;
         try {
+          if (isIOS) {
+            // Re-loading helps iOS recover from "stuck" states
+            audio.load();
+          }
           audio.muted = true;
           await audio.play();
-          if (audio === silentAudioRef.current) {
+          
+          if (isSilentKeeper) {
             audio.muted = false;
             audio.volume = 0.001;
+            audio.loop = true;
           } else {
             audio.pause();
             audio.currentTime = 0;
             audio.muted = wasMuted;
           }
-        } catch {
+        } catch (e) {
+          console.warn("Audio unlock failed for", audio.src, e);
           audio.muted = wasMuted;
         }
       }
@@ -117,15 +150,23 @@ export default function MafiaGame() {
   }, []);
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      // For iOS, we don't necessarily need to do anything here if silent keeper is working.
-      // But if we wanted to resume, we'd need a user gesture.
+    const handleRecovery = () => {
+      // For iOS, returning from background often suspends audio.
+      // We can't auto-play without gesture, but poking the silent keeper
+      // if it was already playing sometimes helps maintain the session.
+      if (silentAudioRef.current && !silentAudioRef.current.paused) {
+        silentAudioRef.current.play().catch(() => {});
+      }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleRecovery);
+    window.addEventListener("pageshow", handleRecovery);
+    window.addEventListener("focus", handleRecovery);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleRecovery);
+      window.removeEventListener("pageshow", handleRecovery);
+      window.removeEventListener("focus", handleRecovery);
     };
   }, []);
 
@@ -163,8 +204,8 @@ export default function MafiaGame() {
     initAudio();
 
     // Unlock on first interaction as well
-    const handleInteraction = () => {
-      void handleAudioUnlock();
+    const handleInteraction = async () => {
+      await handleAudioUnlock();
 
       document.removeEventListener("touchstart", handleInteraction);
       document.removeEventListener("click", handleInteraction);
@@ -310,11 +351,11 @@ export default function MafiaGame() {
     }
   };
 
-  const toggleNight = () => {
+  const toggleNight = async () => {
     const nextNight = !isNight;
     setIsNight(nextNight);
     // Directly handle audio in click handler for iOS Safari/PWA
-    void handleAudioUnlock(nextNight ? [nightAudioRef.current] : []);
+    await handleAudioUnlock(nextNight ? [nightAudioRef.current] : []);
     if (nextNight) {
       if (nightAudioRef.current) {
         nightAudioRef.current.currentTime = 0;
@@ -325,11 +366,11 @@ export default function MafiaGame() {
     }
   };
 
-  const toggleSpeaking = () => {
+  const toggleSpeaking = async () => {
     const nextSpeaking = !isSpeaking;
     setIsSpeaking(nextSpeaking);
     // Pre-unlock sounds on click
-    void handleAudioUnlock();
+    await handleAudioUnlock();
   };
 
   useEffect(() => {
@@ -505,7 +546,7 @@ export default function MafiaGame() {
     setShowSaveInput(false);
   };
 
-  const startGame = () => {
+  const startGame = async () => {
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 
     const allRoles = [
@@ -530,7 +571,7 @@ export default function MafiaGame() {
     setFlippedCardId(null);
 
     // Unlock audio and resume context for iOS Safari PWA
-    void handleAudioUnlock();
+    await handleAudioUnlock();
   };
 
   const flipCard = (id: number) => {
@@ -550,12 +591,14 @@ export default function MafiaGame() {
     setFlippedCardId(null);
   };
 
-  const restart = () => {
+  const restart = async () => {
     setIsStarted(false);
     setCards([]);
     setFlippedCardId(null);
     setIsNight(false);
     setIsSpeaking(false);
+    // Ensure everything is still blessed/poked
+    await handleAudioUnlock();
   };
 
   const exportData = () => {
