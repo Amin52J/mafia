@@ -123,7 +123,7 @@ export default function MafiaGame() {
     if (isIOS && !hasShownIOSAudioMessageRef.current) {
       setShowIOSAudioMessage(true);
       hasShownIOSAudioMessageRef.current = true;
-      setTimeout(() => setShowIOSAudioMessage(false), 8000);
+      setTimeout(() => setShowIOSAudioMessage(false), 10000);
     }
   }, []);
 
@@ -839,7 +839,7 @@ export default function MafiaGame() {
           )}
         </main>
       {showIOSAudioMessage && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-up w-[90%] max-w-sm pointer-events-none">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-down w-[90%] max-w-sm pointer-events-none">
           <div className="px-6 py-4 rounded-3xl font-black text-xs shadow-2xl border border-white/10 glass-dark text-zinc-100 text-center leading-relaxed backdrop-blur-xl">
             {localizeDigits(t("iosAudioHelp"))}
           </div>
@@ -1291,7 +1291,7 @@ export default function MafiaGame() {
         </div>
       )}
       {showIOSAudioMessage && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-up w-[90%] max-w-sm pointer-events-none">
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-down w-[90%] max-w-sm pointer-events-none">
           <div className="px-6 py-4 rounded-3xl font-black text-xs shadow-2xl border border-white/10 glass-dark text-zinc-100 text-center leading-relaxed backdrop-blur-xl">
             {localizeDigits(t("iosAudioHelp"))}
           </div>
