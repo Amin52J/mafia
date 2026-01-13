@@ -59,21 +59,18 @@ export default function MafiaGame() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isAudioUnlockedRef = useRef(false);
-  const [isAudioPossiblyBlocked, setIsAudioPossiblyBlocked] = useState(false);
 
   const playSound = useCallback(async (audio: HTMLAudioElement | null) => {
     if (!audio) return;
     try {
       audio.muted = false;
       await audio.play();
-      setIsAudioPossiblyBlocked(false);
     } catch (e: unknown) {
       if (e instanceof Error && e.name === "AbortError") {
         // Ignore AbortError as it's likely a new load/play request
         return;
       }
       console.warn("Audio play failed:", e);
-      setIsAudioPossiblyBlocked(true);
       setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
       setTimeout(() => setStatusMessage(null), 5000);
     }
@@ -118,24 +115,6 @@ export default function MafiaGame() {
     }
     isAudioUnlockedRef.current = true;
   }, []);
-
-  useEffect(() => {
-    if (!isNight) {
-      setIsAudioPossiblyBlocked(false);
-      return;
-    }
-
-    const checkAudio = () => {
-      if (isNight && nightAudioRef.current && nightAudioRef.current.paused) {
-        setIsAudioPossiblyBlocked(true);
-      } else {
-        setIsAudioPossiblyBlocked(false);
-      }
-    };
-
-    const interval = setInterval(checkAudio, 2000);
-    return () => clearInterval(interval);
-  }, [isNight]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -655,52 +634,19 @@ export default function MafiaGame() {
         className="relative flex flex-col min-h-dvh bg-background text-foreground font-sans max-w-lg mx-auto overflow-x-hidden"
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_55%)]" />
-        <header className="p-4 flex items-center justify-between glass-dark sticky top-0 z-50 gap-2">
+        <header className="p-4 flex items-center justify-between glass-dark sticky top-0 z-50">
           <button 
             onClick={restart}
-            className="text-sm font-medium text-zinc-400 hover:text-white transition-colors shrink-0"
+            className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
           >
             {backArrow} {t("reset")}
           </button>
-          
-          <h1 className="text-lg font-bold tracking-tight truncate">{t("title")}</h1>
-          
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => {
-                void handleAudioUnlock();
-                setIsAudioPossiblyBlocked(false);
-              }}
-              className={`p-1.5 rounded-xl transition-all ${
-                isAudioPossiblyBlocked 
-                  ? "bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]" 
-                  : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white"
-              }`}
-              aria-label={t("tapToEnableAudio")}
-            >
-              <Icon className="h-4 w-4">
-                {isAudioPossiblyBlocked ? (
-                  <>
-                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                    <line x1="23" y1="9" x2="17" y2="15" />
-                    <line x1="17" y1="9" x2="23" y2="15" />
-                  </>
-                ) : (
-                  <>
-                    <path d="M11 5L6 9H2v6h4l5 4V5z" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                  </>
-                )}
-              </Icon>
-            </button>
-
-            <div className="flex items-center gap-2 text-[11px] font-black tracking-widest text-zinc-500 tabular-nums">
-              <span className="hidden sm:inline">{t("cardsLeft")}</span>
-              <span className="inline-flex min-w-7 justify-center rounded-full bg-white/5 px-2 py-1 text-[11px] font-black text-zinc-200">
-                {formatNumber(unseenCardsCount)}
-              </span>
-            </div>
+          <h1 className="text-lg font-bold tracking-tight">{t("title")}</h1>
+          <div className="flex items-center gap-2 text-[11px] font-black tracking-widest text-zinc-500">
+            <span className="hidden sm:inline">{t("cardsLeft")}</span>
+            <span className="inline-flex min-w-7 justify-center rounded-full bg-white/5 px-2 py-1 text-[11px] font-black text-zinc-200 tabular-nums">
+              {formatNumber(unseenCardsCount)}
+            </span>
           </div>
         </header>
 
@@ -1318,24 +1264,6 @@ export default function MafiaGame() {
             </div>
             </div>
           </div>
-        </div>
-      )}
-      {isAudioPossiblyBlocked && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] animate-bounce pointer-events-auto">
-          <button
-            onClick={() => {
-              void handleAudioUnlock();
-              setIsAudioPossiblyBlocked(false);
-            }}
-            className="px-6 py-3 rounded-2xl bg-red-500 text-white font-black text-sm shadow-2xl flex items-center gap-2 border border-white/20 active:scale-95 transition-transform"
-          >
-            <Icon className="h-5 w-5">
-               <path d="M11 5L6 9H2v6h4l5 4V5z" />
-               <line x1="23" y1="9" x2="17" y2="15" />
-               <line x1="17" y1="9" x2="23" y2="15" />
-            </Icon>
-            {t("tapToEnableAudio")}
-          </button>
         </div>
       )}
       {statusMessage && (
