@@ -52,9 +52,9 @@ export default function MafiaGame() {
   const [countdown, setCountdown] = useState(speechDuration);
   const [isSpeaking, setIsSpeaking] = useState(false);
   
-  const nightAudioRef = useRef<HTMLVideoElement | null>(null);
-  const bellAudioRef = useRef<HTMLVideoElement | null>(null);
-  const bellRepeatAudioRef = useRef<HTMLVideoElement | null>(null);
+  const nightAudioRef = useRef<HTMLAudioElement | null>(null);
+  const bellAudioRef = useRef<HTMLAudioElement | null>(null);
+  const bellRepeatAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -62,36 +62,24 @@ export default function MafiaGame() {
   useEffect(() => {
     const initAudio = () => {
       if (!nightAudioRef.current) {
-        const video = document.createElement("video");
-        video.src = "/night.mp3";
-        video.loop = true;
-        video.preload = "auto";
-        video.setAttribute("playsinline", "true");
-        video.setAttribute("webkit-playsinline", "true");
-        nightAudioRef.current = video;
+        nightAudioRef.current = new Audio("/night.mp3");
+        nightAudioRef.current.loop = true;
+        nightAudioRef.current.preload = "auto";
       }
       if (!bellAudioRef.current) {
-        const video = document.createElement("video");
-        video.src = "/bell.mp3";
-        video.preload = "auto";
-        video.setAttribute("playsinline", "true");
-        video.setAttribute("webkit-playsinline", "true");
-        bellAudioRef.current = video;
+        bellAudioRef.current = new Audio("/bell.mp3");
+        bellAudioRef.current.preload = "auto";
       }
       if (!bellRepeatAudioRef.current) {
-        const video = document.createElement("video");
-        video.src = "/bell-repeat.mp3";
-        video.loop = true;
-        video.preload = "auto";
-        video.setAttribute("playsinline", "true");
-        video.setAttribute("webkit-playsinline", "true");
-        bellRepeatAudioRef.current = video;
+        bellRepeatAudioRef.current = new Audio("/bell-repeat.mp3");
+        bellRepeatAudioRef.current.loop = true;
+        bellRepeatAudioRef.current.preload = "auto";
       }
 
       // Try to load
-      nightAudioRef.current?.load();
-      bellAudioRef.current?.load();
-      bellRepeatAudioRef.current?.load();
+      nightAudioRef.current.load();
+      bellAudioRef.current.load();
+      bellRepeatAudioRef.current.load();
     };
 
     initAudio();
@@ -747,7 +735,6 @@ export default function MafiaGame() {
                           inputMode="numeric"
                           value={formatNumber(speechDuration)}
                           onChange={(e) => handleSpeechDurationChange(e.target.value)}
-                          onFocus={(e) => e.target.select()}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-center text-white font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all tabular-nums"
                         />
                         {language === "en" && (
@@ -773,7 +760,6 @@ export default function MafiaGame() {
                           inputMode="numeric"
                           value={formatNumber(extraTime)}
                           onChange={(e) => handleExtraTimeChange(e.target.value)}
-                          onFocus={(e) => e.target.select()}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-center text-white font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all tabular-nums"
                         />
                         {language === "en" && (
