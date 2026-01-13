@@ -110,13 +110,32 @@ export default function MafiaGame() {
     if (!a) return false;
     if (!a.paused) return true;
 
+    const attemptPlay = async (audio: HTMLAudioElement) => {
+      audio.muted = false;
+      audio.volume = 0.001;
+      await audio.play();
+      return !audio.paused;
+    };
+
     try {
-      a.muted = false;
-      a.volume = 0.001;
-      await a.play();
-      return !a.paused;
-    } catch {
-      return false;
+      if (await attemptPlay(a)) return true;
+      throw new Error("Stalled");
+    } catch (e) {
+      console.warn("Silent keeper failed, retrying with recreation:", e);
+      // Recreate and retry
+      const fresh = new Audio("/silent.mp3");
+      fresh.loop = true;
+      fresh.volume = 0.001;
+      fresh.preload = "auto";
+      // @ts-expect-error - playsInline exists on iOS but not in standard TS types
+      fresh.playsInline = true;
+      silentAudioRef.current = fresh;
+      try {
+        return await attemptPlay(fresh);
+      } catch (e2) {
+        console.warn("Silent keeper failed even after recreation:", e2);
+        return false;
+      }
     }
   }, []);
 
@@ -347,14 +366,15 @@ export default function MafiaGame() {
   };
 
   const toggleNight = async () => {
-    const nextNight = !isNight;
-
-    // Ensure session is alive in the gesture
+    // Ensure session is alive in the gesture FIRST
     const ok = await ensureSilentKeeper();
     if (!ok) {
       setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
+      setTimeout(() => setStatusMessage(null), 5000);
       return;
     }
+
+    const nextNight = !isNight;
 
     if (nextNight) {
       if (nightAudioRef.current) {
@@ -369,15 +389,15 @@ export default function MafiaGame() {
   };
 
   const toggleSpeaking = async () => {
-    const nextSpeaking = !isSpeaking;
-
-    // Ensure session is alive in the gesture
+    // Ensure session is alive in the gesture FIRST
     const ok = await ensureSilentKeeper();
     if (!ok) {
       setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
+      setTimeout(() => setStatusMessage(null), 5000);
       return;
     }
 
+    const nextSpeaking = !isSpeaking;
     setIsSpeaking(nextSpeaking);
   };
 
@@ -555,6 +575,12 @@ export default function MafiaGame() {
   };
 
   const startGame = async () => {
+    // Unlock audio and resume context for iOS Safari PWA FIRST
+    const ok = await ensureSilentKeeper();
+    if (!ok) {
+      console.warn("Silent keeper failed to start during startGame");
+    }
+
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 
     const allRoles = [
@@ -577,12 +603,6 @@ export default function MafiaGame() {
     setCards(shuffled);
     setIsStarted(true);
     setFlippedCardId(null);
-
-    // Unlock audio and resume context for iOS Safari PWA
-    const ok = await ensureSilentKeeper();
-    if (!ok) {
-      console.warn("Silent keeper failed to start during startGame");
-    }
   };
 
   const flipCard = (id: number) => {
@@ -763,7 +783,7 @@ export default function MafiaGame() {
               <div className="w-full space-y-4 mb-8">
                 <div className="grid grid-cols-2 gap-4">
                   <button
-                    onPointerDown={() => void toggleNight()}
+                    onClick={() => void toggleNight()}
                     className={`py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
                       isNight ? "bg-white text-black" : "bg-zinc-800 text-white border border-white/10"
                     }`}
@@ -782,7 +802,7 @@ export default function MafiaGame() {
                   </button>
 
                   <button
-                    onPointerDown={() => void toggleSpeaking()}
+                    onClick={() => void toggleSpeaking()}
                     className={`py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
                       isSpeaking ? "bg-red-500 text-white" : "bg-zinc-800 text-white border border-white/10"
                     }`}
@@ -1056,7 +1076,7 @@ export default function MafiaGame() {
       <footer className="fixed inset-x-0 bottom-0 z-50">
         <div className="max-w-lg mx-auto px-6 safe-pb pt-6 bg-gradient-to-t from-black via-black/70 to-transparent">
           <button
-            onPointerDown={() => void startGame()}
+            onClick={() => void startGame()}
             disabled={totalPlayers <= 0}
             className={`w-full py-5 rounded-3xl font-black text-xl transition-all shadow-[0_10px_40px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3 ${
               totalPlayers <= 0
