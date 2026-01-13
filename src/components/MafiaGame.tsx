@@ -58,64 +58,62 @@ export default function MafiaGame() {
   const silentAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const safePlay = useCallback(async (ref: React.MutableRefObject<HTMLAudioElement | null>) => {
-    const audio = ref.current;
-    if (!audio) return false;
+  const isAudioUnlockedRef = useRef(false);
 
+  const playSound = useCallback(async (audio: HTMLAudioElement | null) => {
+    if (!audio) return;
     try {
       audio.muted = false;
-
-      // Attempt play
-      const p = audio.play();
-      await p;
-
-      // If iOS "resolves" but it's still paused, treat as failure
-      if (audio.paused) throw new Error("iOS: play resolved but audio is paused");
-
-      return true;
+      await audio.play();
     } catch (e: unknown) {
       if (e instanceof Error && e.name === "AbortError") {
-        return false;
+        // Ignore AbortError as it's likely a new load/play request
+        return;
       }
-      // Recreate element once (key iOS workaround)
-      try {
-        const src = audio.src;
-        const loop = audio.loop;
-
-        const fresh = new Audio(src);
-        fresh.loop = loop;
-        fresh.preload = "auto";
-        fresh.muted = false;
-        fresh.volume = audio.volume;
-
-        ref.current = fresh;
-
-        await fresh.play();
-        if (fresh.paused) throw new Error("iOS: retry play still paused");
-
-        return true;
-      } catch (e2) {
-        console.warn("Audio play failed (after recreate):", e2);
-        setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
-        setTimeout(() => setStatusMessage(null), 5000);
-        return false;
-      }
+      console.warn("Audio play failed:", e);
+      setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
+      setTimeout(() => setStatusMessage(null), 5000);
     }
   }, [t]);
 
-  const ensureSilentKeeper = useCallback(async () => {
-    const a = silentAudioRef.current;
-    if (!a) return false;
-    if (!a.paused) return true;
+  const handleAudioUnlock = useCallback(async (skipElements: (HTMLAudioElement | null)[] = []) => {
+    // On Chrome, we only need to do this once.
+    // On iOS, we might need to do it again after interruptions, but usually once per session is okay.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
+    if (isAudioUnlockedRef.current && !isIOS) return;
 
-    try {
-      a.muted = false;
-      a.volume = 0.001;
-      await a.play();
-      return !a.paused;
-    } catch {
-      return false;
+    const audios = [
+      nightAudioRef.current,
+      bellAudioRef.current,
+      bellRepeatAudioRef.current,
+      silentAudioRef.current
+    ];
+
+    for (const audio of audios) {
+      if (audio && !skipElements.includes(audio)) {
+        // Skip if already playing and unmuted (likely currently in use)
+        if (!audio.paused && !audio.muted && audio !== silentAudioRef.current) continue;
+        // Skip silent keeper if already playing
+        if (audio === silentAudioRef.current && !audio.paused) continue;
+
+        const wasMuted = audio.muted;
+        try {
+          audio.muted = true;
+          await audio.play();
+          if (audio === silentAudioRef.current) {
+            audio.muted = false;
+            audio.volume = 0.001;
+          } else {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = wasMuted;
+          }
+        } catch {
+          audio.muted = wasMuted;
+        }
+      }
     }
+    isAudioUnlockedRef.current = true;
   }, []);
 
   useEffect(() => {
@@ -166,7 +164,7 @@ export default function MafiaGame() {
 
     // Unlock on first interaction as well
     const handleInteraction = () => {
-      void ensureSilentKeeper();
+      void handleAudioUnlock();
 
       document.removeEventListener("touchstart", handleInteraction);
       document.removeEventListener("click", handleInteraction);
@@ -179,7 +177,7 @@ export default function MafiaGame() {
       document.removeEventListener("touchstart", handleInteraction);
       document.removeEventListener("click", handleInteraction);
     };
-  }, [ensureSilentKeeper]);
+  }, [handleAudioUnlock]);
 
   const saveInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -232,6 +230,22 @@ export default function MafiaGame() {
   }, [extraTime]);
 
   useEffect(() => {
+    if (isNight) {
+      if (nightAudioRef.current && nightAudioRef.current.paused) {
+        nightAudioRef.current.currentTime = 0;
+        void playSound(nightAudioRef.current);
+      }
+    } else {
+      if (nightAudioRef.current) {
+        nightAudioRef.current.pause();
+      }
+    }
+    return () => {
+      nightAudioRef.current?.pause();
+    };
+  }, [isNight, playSound]);
+
+  useEffect(() => {
     if (isSpeaking) {
       setCountdown(speechDuration);
 
@@ -241,13 +255,13 @@ export default function MafiaGame() {
           const next = prev - 1;
           if (next === extraTime) {
             if (bellAudioRef.current) bellAudioRef.current.currentTime = 0;
-            void safePlay(bellAudioRef);
+            void playSound(bellAudioRef.current);
           } else if (next === 0) {
             if (bellAudioRef.current) bellAudioRef.current.currentTime = 0;
-            void safePlay(bellAudioRef);
+            void playSound(bellAudioRef.current);
           } else if (next === -extraTime) {
             if (bellRepeatAudioRef.current) bellRepeatAudioRef.current.currentTime = 0;
-            void safePlay(bellRepeatAudioRef);
+            void playSound(bellRepeatAudioRef.current);
           }
           return next;
         });
@@ -263,7 +277,7 @@ export default function MafiaGame() {
       if (timerRef.current) clearInterval(timerRef.current);
       bellRepeatAudioRef.current?.pause();
     };
-  }, [isSpeaking, speechDuration, extraTime, safePlay]);
+  }, [isSpeaking, speechDuration, extraTime, playSound]);
 
   const delocalizeDigits = (text: string) => {
     const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
@@ -296,31 +310,26 @@ export default function MafiaGame() {
     }
   };
 
-  const toggleNight = async () => {
+  const toggleNight = () => {
     const nextNight = !isNight;
-
-    // Ensure session is alive in the gesture
-    await ensureSilentKeeper();
-
+    setIsNight(nextNight);
+    // Directly handle audio in click handler for iOS Safari/PWA
+    void handleAudioUnlock(nextNight ? [nightAudioRef.current] : []);
     if (nextNight) {
       if (nightAudioRef.current) {
         nightAudioRef.current.currentTime = 0;
-        await safePlay(nightAudioRef);
+        void playSound(nightAudioRef.current);
       }
     } else {
       nightAudioRef.current?.pause();
     }
-
-    setIsNight(nextNight);
   };
 
-  const toggleSpeaking = async () => {
+  const toggleSpeaking = () => {
     const nextSpeaking = !isSpeaking;
-
-    // Ensure session is alive in the gesture
-    await ensureSilentKeeper();
-
     setIsSpeaking(nextSpeaking);
+    // Pre-unlock sounds on click
+    void handleAudioUnlock();
   };
 
   useEffect(() => {
@@ -496,7 +505,7 @@ export default function MafiaGame() {
     setShowSaveInput(false);
   };
 
-  const startGame = async () => {
+  const startGame = () => {
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 
     const allRoles = [
@@ -521,7 +530,7 @@ export default function MafiaGame() {
     setFlippedCardId(null);
 
     // Unlock audio and resume context for iOS Safari PWA
-    void ensureSilentKeeper();
+    void handleAudioUnlock();
   };
 
   const flipCard = (id: number) => {
@@ -702,7 +711,7 @@ export default function MafiaGame() {
               <div className="w-full space-y-4 mb-8">
                 <div className="grid grid-cols-2 gap-4">
                   <button
-                    onPointerDown={() => void toggleNight()}
+                    onClick={toggleNight}
                     className={`py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
                       isNight ? "bg-white text-black" : "bg-zinc-800 text-white border border-white/10"
                     }`}
@@ -721,7 +730,7 @@ export default function MafiaGame() {
                   </button>
 
                   <button
-                    onPointerDown={() => void toggleSpeaking()}
+                    onClick={toggleSpeaking}
                     className={`py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
                       isSpeaking ? "bg-red-500 text-white" : "bg-zinc-800 text-white border border-white/10"
                     }`}
@@ -995,7 +1004,7 @@ export default function MafiaGame() {
       <footer className="fixed inset-x-0 bottom-0 z-50">
         <div className="max-w-lg mx-auto px-6 safe-pb pt-6 bg-gradient-to-t from-black via-black/70 to-transparent">
           <button
-            onPointerDown={() => void startGame()}
+            onClick={startGame}
             disabled={totalPlayers <= 0}
             className={`w-full py-5 rounded-3xl font-black text-xl transition-all shadow-[0_10px_40px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3 ${
               totalPlayers <= 0
