@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore, useRef, type ReactNode } from "react";
+import { useState, useEffect, useSyncExternalStore, useRef, useCallback, type ReactNode } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Scenario, Card } from "@/types/game";
 
@@ -60,13 +60,13 @@ export default function MafiaGame() {
 
   const isAudioUnlockedRef = useRef(false);
 
-  const playSound = async (audio: HTMLAudioElement | null) => {
+  const playSound = useCallback(async (audio: HTMLAudioElement | null) => {
     if (!audio) return;
     try {
       audio.muted = false;
       await audio.play();
-    } catch (e: any) {
-      if (e?.name === "AbortError") {
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === "AbortError") {
         // Ignore AbortError as it's likely a new load/play request
         return;
       }
@@ -74,12 +74,12 @@ export default function MafiaGame() {
       setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
       setTimeout(() => setStatusMessage(null), 5000);
     }
-  };
+  }, [t]);
 
-  const handleAudioUnlock = async (skipElements: (HTMLAudioElement | null)[] = []) => {
+  const handleAudioUnlock = useCallback(async (skipElements: (HTMLAudioElement | null)[] = []) => {
     // On Chrome, we only need to do this once.
     // On iOS, we might need to do it again after interruptions, but usually once per session is okay.
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
     if (isAudioUnlockedRef.current && !isIOS) return;
 
     const audios = [
@@ -108,13 +108,13 @@ export default function MafiaGame() {
             audio.currentTime = 0;
             audio.muted = wasMuted;
           }
-        } catch (e) {
+        } catch {
           audio.muted = wasMuted;
         }
       }
     }
     isAudioUnlockedRef.current = true;
-  };
+  }, []);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -177,7 +177,7 @@ export default function MafiaGame() {
       document.removeEventListener("touchstart", handleInteraction);
       document.removeEventListener("click", handleInteraction);
     };
-  }, []);
+  }, [handleAudioUnlock]);
 
   const saveInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -243,7 +243,7 @@ export default function MafiaGame() {
     return () => {
       nightAudioRef.current?.pause();
     };
-  }, [isNight]);
+  }, [isNight, playSound]);
 
   useEffect(() => {
     if (isSpeaking) {
@@ -277,7 +277,7 @@ export default function MafiaGame() {
       if (timerRef.current) clearInterval(timerRef.current);
       bellRepeatAudioRef.current?.pause();
     };
-  }, [isSpeaking, speechDuration, extraTime]);
+  }, [isSpeaking, speechDuration, extraTime, playSound]);
 
   const delocalizeDigits = (text: string) => {
     const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
