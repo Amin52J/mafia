@@ -734,6 +734,7 @@ export default function MafiaGame() {
                           type="text"
                           inputMode="numeric"
                           value={formatNumber(speechDuration)}
+                          onFocus={(e) => e.target.select()}
                           onChange={(e) => handleSpeechDurationChange(e.target.value)}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-center text-white font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all tabular-nums"
                         />
@@ -759,6 +760,7 @@ export default function MafiaGame() {
                           type="text"
                           inputMode="numeric"
                           value={formatNumber(extraTime)}
+                          onFocus={(e) => e.target.select()}
                           onChange={(e) => handleExtraTimeChange(e.target.value)}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-center text-white font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all tabular-nums"
                         />
