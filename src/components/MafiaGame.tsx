@@ -81,7 +81,7 @@ export default function MafiaGame() {
   const handleAudioUnlock = useCallback(async (skipElements: (HTMLAudioElement | null)[] = []) => {
     // On Chrome, we only need to do this once.
     // On iOS, we might need to do it again after interruptions, but usually once per session is okay.
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
+    const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as Window & { MSStream?: unknown }).MSStream;
     if (isAudioUnlockedRef.current && !isIOS) return;
 
     const audios = [
@@ -119,7 +119,7 @@ export default function MafiaGame() {
   }, []);
 
   const triggerIOSAudioHelp = useCallback(() => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
+    const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as Window & { MSStream?: unknown }).MSStream;
     if (isIOS && !hasShownIOSAudioMessageRef.current) {
       setShowIOSAudioMessage(true);
       hasShownIOSAudioMessageRef.current = true;
@@ -838,6 +838,22 @@ export default function MafiaGame() {
             </div>
           )}
         </main>
+      {showIOSAudioMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-up w-[90%] max-w-sm pointer-events-none">
+          <div className="px-6 py-4 rounded-3xl font-black text-xs shadow-2xl border border-white/10 glass-dark text-zinc-100 text-center leading-relaxed backdrop-blur-xl">
+            {localizeDigits(t("iosAudioHelp"))}
+          </div>
+        </div>
+      )}
+      {statusMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-slide-up pointer-events-none">
+          <div className={`px-6 py-3 rounded-2xl font-black text-sm shadow-2xl border border-white/10 glass ${
+            statusMessage.type === "success" ? "text-emerald-400" : "text-red-400"
+          }`}>
+            {statusMessage.text}
+          </div>
+        </div>
+      )}
       </div>
     );
   }
@@ -1277,7 +1293,7 @@ export default function MafiaGame() {
       {showIOSAudioMessage && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-up w-[90%] max-w-sm pointer-events-none">
           <div className="px-6 py-4 rounded-3xl font-black text-xs shadow-2xl border border-white/10 glass-dark text-zinc-100 text-center leading-relaxed backdrop-blur-xl">
-            {t("iosAudioHelp")}
+            {localizeDigits(t("iosAudioHelp"))}
           </div>
         </div>
       )}
