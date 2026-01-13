@@ -55,9 +55,79 @@ export default function MafiaGame() {
   const nightAudioRef = useRef<HTMLAudioElement | null>(null);
   const bellAudioRef = useRef<HTMLAudioElement | null>(null);
   const bellRepeatAudioRef = useRef<HTMLAudioElement | null>(null);
+  const silentAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const isAudioUnlockedRef = useRef(false);
+
+  const playSound = async (audio: HTMLAudioElement | null) => {
+    if (!audio) return;
+    try {
+      audio.muted = false;
+      await audio.play();
+    } catch (e: any) {
+      if (e?.name === "AbortError") {
+        // Ignore AbortError as it's likely a new load/play request
+        return;
+      }
+      console.warn("Audio play failed:", e);
+      setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
+      setTimeout(() => setStatusMessage(null), 5000);
+    }
+  };
+
+  const handleAudioUnlock = async (skipElements: (HTMLAudioElement | null)[] = []) => {
+    // On Chrome, we only need to do this once.
+    // On iOS, we might need to do it again after interruptions, but usually once per session is okay.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    if (isAudioUnlockedRef.current && !isIOS) return;
+
+    const audios = [
+      nightAudioRef.current,
+      bellAudioRef.current,
+      bellRepeatAudioRef.current,
+      silentAudioRef.current
+    ];
+
+    for (const audio of audios) {
+      if (audio && !skipElements.includes(audio)) {
+        // Skip if already playing and unmuted (likely currently in use)
+        if (!audio.paused && !audio.muted && audio !== silentAudioRef.current) continue;
+        // Skip silent keeper if already playing
+        if (audio === silentAudioRef.current && !audio.paused) continue;
+
+        const wasMuted = audio.muted;
+        try {
+          audio.muted = true;
+          await audio.play();
+          if (audio === silentAudioRef.current) {
+            audio.muted = false;
+            audio.volume = 0.001;
+          } else {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = wasMuted;
+          }
+        } catch (e) {
+          audio.muted = wasMuted;
+        }
+      }
+    }
+    isAudioUnlockedRef.current = true;
+  };
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      // For iOS, we don't necessarily need to do anything here if silent keeper is working.
+      // But if we wanted to resume, we'd need a user gesture.
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     const initAudio = () => {
@@ -75,40 +145,26 @@ export default function MafiaGame() {
         bellRepeatAudioRef.current.loop = true;
         bellRepeatAudioRef.current.preload = "auto";
       }
+      if (!silentAudioRef.current) {
+        // Use a tiny silent base64 mp3 or just one of the files at very low volume
+        silentAudioRef.current = new Audio("data:audio/mpeg;base64,SUQzBAAAAAABAFRYWFhYAAAAHAAAAERlYnVnZ2luZyBpbmZvcm1hdGlvbgAAMi40LjADAQAAAAAAAAAAAAAA//uQZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUE9XWUVSTUVTU0FHRREAAAABvH0UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//uQZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUE9XWUVSTUVTU0FHRREAAAABvH0UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+        silentAudioRef.current.loop = true;
+        silentAudioRef.current.volume = 0.001;
+        silentAudioRef.current.preload = "auto";
+      }
 
       // Try to load
-      nightAudioRef.current.load();
-      bellAudioRef.current.load();
-      bellRepeatAudioRef.current.load();
+      nightAudioRef.current?.load();
+      bellAudioRef.current?.load();
+      bellRepeatAudioRef.current?.load();
+      silentAudioRef.current?.load();
     };
 
     initAudio();
 
     // Unlock on first interaction as well
     const handleInteraction = () => {
-      if (!audioContextRef.current) {
-        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (AudioContextClass) {
-          audioContextRef.current = new AudioContextClass();
-        }
-      }
-      if (audioContextRef.current?.state === "suspended") {
-        audioContextRef.current.resume();
-      }
-
-      [nightAudioRef.current, bellAudioRef.current, bellRepeatAudioRef.current].forEach(audio => {
-        if (audio) {
-          const wasMuted = audio.muted;
-          audio.muted = true;
-          audio.play().then(() => {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.muted = wasMuted;
-          }).catch(() => {
-            audio.muted = wasMuted;
-          });
-        }
-      });
+      void handleAudioUnlock();
 
       document.removeEventListener("touchstart", handleInteraction);
       document.removeEventListener("click", handleInteraction);
@@ -175,9 +231,9 @@ export default function MafiaGame() {
 
   useEffect(() => {
     if (isNight) {
-      if (nightAudioRef.current) {
+      if (nightAudioRef.current && nightAudioRef.current.paused) {
         nightAudioRef.current.currentTime = 0;
-        nightAudioRef.current.play().catch(() => {});
+        void playSound(nightAudioRef.current);
       }
     } else {
       if (nightAudioRef.current) {
@@ -198,11 +254,14 @@ export default function MafiaGame() {
           if (prev <= -extraTime) return prev;
           const next = prev - 1;
           if (next === extraTime) {
-            bellAudioRef.current?.play().catch(() => {});
+            if (bellAudioRef.current) bellAudioRef.current.currentTime = 0;
+            void playSound(bellAudioRef.current);
           } else if (next === 0) {
-            bellAudioRef.current?.play().catch(() => {});
+            if (bellAudioRef.current) bellAudioRef.current.currentTime = 0;
+            void playSound(bellAudioRef.current);
           } else if (next === -extraTime) {
-            bellRepeatAudioRef.current?.play().catch(() => {});
+            if (bellRepeatAudioRef.current) bellRepeatAudioRef.current.currentTime = 0;
+            void playSound(bellRepeatAudioRef.current);
           }
           return next;
         });
@@ -255,10 +314,11 @@ export default function MafiaGame() {
     const nextNight = !isNight;
     setIsNight(nextNight);
     // Directly handle audio in click handler for iOS Safari/PWA
+    void handleAudioUnlock(nextNight ? [nightAudioRef.current] : []);
     if (nextNight) {
       if (nightAudioRef.current) {
         nightAudioRef.current.currentTime = 0;
-        nightAudioRef.current.play().catch(() => {});
+        void playSound(nightAudioRef.current);
       }
     } else {
       nightAudioRef.current?.pause();
@@ -268,22 +328,8 @@ export default function MafiaGame() {
   const toggleSpeaking = () => {
     const nextSpeaking = !isSpeaking;
     setIsSpeaking(nextSpeaking);
-    // Pre-unlock bell sounds on click
-    if (nextSpeaking) {
-      [bellAudioRef.current, bellRepeatAudioRef.current].forEach(audio => {
-        if (audio) {
-          const wasMuted = audio.muted;
-          audio.muted = true;
-          audio.play().then(() => {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.muted = wasMuted;
-          }).catch(() => {
-            audio.muted = wasMuted;
-          });
-        }
-      });
-    }
+    // Pre-unlock sounds on click
+    void handleAudioUnlock();
   };
 
   useEffect(() => {
@@ -484,23 +530,7 @@ export default function MafiaGame() {
     setFlippedCardId(null);
 
     // Unlock audio and resume context for iOS Safari PWA
-    if (audioContextRef.current?.state === "suspended") {
-      audioContextRef.current.resume();
-    }
-
-    [nightAudioRef.current, bellAudioRef.current, bellRepeatAudioRef.current].forEach(audio => {
-      if (audio) {
-        const wasMuted = audio.muted;
-        audio.muted = true;
-        audio.play().then(() => {
-          audio.pause();
-          audio.currentTime = 0;
-          audio.muted = wasMuted;
-        }).catch(() => {
-          audio.muted = wasMuted;
-        });
-      }
-    });
+    void handleAudioUnlock();
   };
 
   const flipCard = (id: number) => {
@@ -1230,19 +1260,18 @@ export default function MafiaGame() {
                   </Icon>
                   {t("import")}
                 </button>
-
-                {statusMessage && (
-                  <div
-                    className={`text-center text-sm font-bold animate-fade-in ${
-                      statusMessage.type === "success" ? "text-emerald-400" : "text-red-400"
-                    }`}
-                  >
-                    {statusMessage.text}
-                  </div>
-                )}
               </div>
             </div>
             </div>
+          </div>
+        </div>
+      )}
+      {statusMessage && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-slide-up pointer-events-none">
+          <div className={`px-6 py-3 rounded-2xl font-black text-sm shadow-2xl border border-white/10 glass ${
+            statusMessage.type === "success" ? "text-emerald-400" : "text-red-400"
+          }`}>
+            {statusMessage.text}
           </div>
         </div>
       )}

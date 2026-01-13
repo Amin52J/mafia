@@ -45,5 +45,6 @@
   "import": "Import Data",
   "exportSuccess": "Data copied to clipboard",
   "importSuccess": "Data imported successfully",
-  "importError": "Invalid data format"
+  "importError": "Invalid data format",
+  "tapToEnableAudio": "Tap to enable audio"
 }
