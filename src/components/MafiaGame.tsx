@@ -59,27 +59,57 @@ export default function MafiaGame() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isAudioUnlockedRef = useRef(false);
+  const needsAudioReunlockRef = useRef(false);
+  const isNightRef = useRef(false);
+  const lastUnlockAttemptAtRef = useRef(0);
+
+  useEffect(() => {
+    isNightRef.current = isNight;
+  }, [isNight]);
+
+  const isIOSDevice = useCallback(() => {
+    const ua = navigator.userAgent;
+    const isAppleMobile = /iPad|iPhone|iPod/.test(ua);
+    // iPadOS 13+ often reports as Mac; maxTouchPoints is a common workaround.
+    const isIpadOs = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    const hasMSStream = !!(window as Window & { MSStream?: unknown }).MSStream;
+    return (isAppleMobile || isIpadOs) && !hasMSStream;
+  }, []);
 
   const playSound = useCallback(async (audio: HTMLAudioElement | null) => {
     if (!audio) return;
     try {
       audio.muted = false;
+      // iOS can get into a weird state after background/lock/interruption; re-load helps sometimes.
+      if (needsAudioReunlockRef.current) {
+        try {
+          audio.load();
+        } catch {
+          // ignore
+        }
+      }
       await audio.play();
     } catch (e: unknown) {
       if (e instanceof Error && e.name === "AbortError") {
         // Ignore AbortError as it's likely a new load/play request
         return;
       }
+
+      // After an interruption on iOS PWA, we'll need a fresh user gesture to re-enable audio.
+      if (isIOSDevice()) {
+        needsAudioReunlockRef.current = true;
+        isAudioUnlockedRef.current = false;
+      }
       console.warn("Audio play failed:", e);
       setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
       setTimeout(() => setStatusMessage(null), 5000);
     }
-  }, [t]);
+  }, [t, isIOSDevice]);
 
   const handleAudioUnlock = useCallback(async (skipElements: (HTMLAudioElement | null)[] = []) => {
     // On Chrome, we only need to do this once.
     // On iOS, we might need to do it again after interruptions, but usually once per session is okay.
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as Window & { MSStream?: unknown }).MSStream;
+    const isIOS = isIOSDevice();
     if (isAudioUnlockedRef.current && !isIOS) return;
 
     const audios = [
@@ -88,6 +118,8 @@ export default function MafiaGame() {
       bellRepeatAudioRef.current,
       silentAudioRef.current
     ];
+
+    let anySucceeded = false;
 
     for (const audio of audios) {
       if (audio && !skipElements.includes(audio)) {
@@ -98,8 +130,15 @@ export default function MafiaGame() {
 
         const wasMuted = audio.muted;
         try {
+          // Some iOS interruption states recover more reliably if we force a reload.
+          try {
+            audio.load();
+          } catch {
+            // ignore
+          }
           audio.muted = true;
           await audio.play();
+          anySucceeded = true;
           if (audio === silentAudioRef.current) {
             audio.muted = false;
             audio.volume = 0.001;
@@ -113,21 +152,51 @@ export default function MafiaGame() {
         }
       }
     }
-    isAudioUnlockedRef.current = true;
-  }, []);
+
+    if (anySucceeded) {
+      isAudioUnlockedRef.current = true;
+      needsAudioReunlockRef.current = false;
+    }
+  }, [isIOSDevice]);
 
   useEffect(() => {
+    const markNeedsReunlock = () => {
+      if (!isIOSDevice()) return;
+      needsAudioReunlockRef.current = true;
+      isAudioUnlockedRef.current = false;
+
+      // Don't attempt autoplay here (often blocked); just reset so the next tap can re-enable.
+      try {
+        silentAudioRef.current?.pause();
+        if (silentAudioRef.current) silentAudioRef.current.currentTime = 0;
+        silentAudioRef.current?.load();
+      } catch {
+        // ignore
+      }
+    };
+
     const handleVisibilityChange = () => {
-      // For iOS, we don't necessarily need to do anything here if silent keeper is working.
-      // But if we wanted to resume, we'd need a user gesture.
+      if (document.visibilityState === "visible") {
+        markNeedsReunlock();
+      } else {
+        markNeedsReunlock();
+      }
+    };
+
+    const handleFocus = () => {
+      markNeedsReunlock();
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pageshow", handleFocus);
+    window.addEventListener("focus", handleFocus);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pageshow", handleFocus);
+      window.removeEventListener("focus", handleFocus);
     };
-  }, []);
+  }, [isIOSDevice]);
 
   useEffect(() => {
     const initAudio = () => {
@@ -135,15 +204,21 @@ export default function MafiaGame() {
         nightAudioRef.current = new Audio("/night.mp3");
         nightAudioRef.current.loop = true;
         nightAudioRef.current.preload = "auto";
+        nightAudioRef.current.setAttribute("playsinline", "true");
+        nightAudioRef.current.setAttribute("webkit-playsinline", "true");
       }
       if (!bellAudioRef.current) {
         bellAudioRef.current = new Audio("/bell.mp3");
         bellAudioRef.current.preload = "auto";
+        bellAudioRef.current.setAttribute("playsinline", "true");
+        bellAudioRef.current.setAttribute("webkit-playsinline", "true");
       }
       if (!bellRepeatAudioRef.current) {
         bellRepeatAudioRef.current = new Audio("/bell-repeat.mp3");
         bellRepeatAudioRef.current.loop = true;
         bellRepeatAudioRef.current.preload = "auto";
+        bellRepeatAudioRef.current.setAttribute("playsinline", "true");
+        bellRepeatAudioRef.current.setAttribute("webkit-playsinline", "true");
       }
       if (!silentAudioRef.current) {
         // Use a tiny silent base64 mp3 or just one of the files at very low volume
@@ -151,6 +226,8 @@ export default function MafiaGame() {
         silentAudioRef.current.loop = true;
         silentAudioRef.current.volume = 0.001;
         silentAudioRef.current.preload = "auto";
+        silentAudioRef.current.setAttribute("playsinline", "true");
+        silentAudioRef.current.setAttribute("webkit-playsinline", "true");
       }
 
       // Try to load
@@ -162,22 +239,34 @@ export default function MafiaGame() {
 
     initAudio();
 
-    // Unlock on first interaction as well
+    // iOS PWA can lose audio after lock/background; keep a lightweight interaction hook
+    // so the next user gesture can re-unlock audio.
     const handleInteraction = () => {
-      void handleAudioUnlock();
+      const now = Date.now();
+      if (now - lastUnlockAttemptAtRef.current < 350) return;
+      lastUnlockAttemptAtRef.current = now;
 
-      document.removeEventListener("touchstart", handleInteraction);
-      document.removeEventListener("click", handleInteraction);
+      if (!isAudioUnlockedRef.current || needsAudioReunlockRef.current) {
+        void handleAudioUnlock();
+      }
+
+      // If we're currently in night mode and audio got interrupted, try to resume it on the next tap.
+      if (isNightRef.current && nightAudioRef.current?.paused) {
+        nightAudioRef.current.currentTime = 0;
+        void playSound(nightAudioRef.current);
+      }
     };
 
-    document.addEventListener("touchstart", handleInteraction);
+    document.addEventListener("touchstart", handleInteraction, { passive: true });
     document.addEventListener("click", handleInteraction);
+    document.addEventListener("pointerdown", handleInteraction);
 
     return () => {
       document.removeEventListener("touchstart", handleInteraction);
       document.removeEventListener("click", handleInteraction);
+      document.removeEventListener("pointerdown", handleInteraction);
     };
-  }, [handleAudioUnlock]);
+  }, [handleAudioUnlock, playSound]);
 
   const saveInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -230,20 +319,15 @@ export default function MafiaGame() {
   }, [extraTime]);
 
   useEffect(() => {
-    if (isNight) {
-      if (nightAudioRef.current && nightAudioRef.current.paused) {
-        nightAudioRef.current.currentTime = 0;
-        void playSound(nightAudioRef.current);
-      }
-    } else {
-      if (nightAudioRef.current) {
-        nightAudioRef.current.pause();
-      }
+    // Avoid starting audio from an effect (not a user gesture). Night audio should be started
+    // from the explicit user action that toggles night.
+    if (!isNight) {
+      nightAudioRef.current?.pause();
     }
     return () => {
       nightAudioRef.current?.pause();
     };
-  }, [isNight, playSound]);
+  }, [isNight]);
 
   useEffect(() => {
     if (isSpeaking) {
