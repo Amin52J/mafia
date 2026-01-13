@@ -62,7 +62,6 @@ export default function MafiaGame() {
   const needsAudioReunlockRef = useRef(false);
   const isNightRef = useRef(false);
   const lastUnlockAttemptAtRef = useRef(0);
-  const nightPlayFailedRef = useRef(false);
 
   useEffect(() => {
     isNightRef.current = isNight;
@@ -100,24 +99,9 @@ export default function MafiaGame() {
       if (isIOSDevice()) {
         needsAudioReunlockRef.current = true;
         isAudioUnlockedRef.current = false;
-
-        if (audio === nightAudioRef.current) {
-          nightPlayFailedRef.current = true;
-        }
-
-        // Reset the silent keeper so the next gesture can re-establish the audio pipeline.
-        try {
-          silentAudioRef.current?.pause();
-          if (silentAudioRef.current) silentAudioRef.current.currentTime = 0;
-          silentAudioRef.current?.load();
-        } catch {
-          // ignore
-        }
       }
       console.warn("Audio play failed:", e);
-
-      const msg = isIOSDevice() ? t("tapToEnableAudioIOS") : t("tapToEnableAudio");
-      setStatusMessage({ text: msg, type: "error" });
+      setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
       setTimeout(() => setStatusMessage(null), 5000);
     }
   }, [t, isIOSDevice]);
@@ -129,11 +113,10 @@ export default function MafiaGame() {
     if (isAudioUnlockedRef.current && !isIOS) return;
 
     const audios = [
-      // Prioritize the silent keeper: it is tiny and tends to succeed more reliably on iOS.
-      silentAudioRef.current,
       nightAudioRef.current,
       bellAudioRef.current,
       bellRepeatAudioRef.current,
+      silentAudioRef.current
     ];
 
     let anySucceeded = false;
@@ -268,11 +251,9 @@ export default function MafiaGame() {
       }
 
       // If we're currently in night mode and audio got interrupted, try to resume it on the next tap.
-      const nightAudio = nightAudioRef.current;
-      if (isNightRef.current && nightAudio && (nightPlayFailedRef.current || nightAudio.paused)) {
-        nightPlayFailedRef.current = false;
-        nightAudio.currentTime = 0;
-        void playSound(nightAudio);
+      if (isNightRef.current && nightAudioRef.current?.paused) {
+        nightAudioRef.current.currentTime = 0;
+        void playSound(nightAudioRef.current);
       }
     };
 
@@ -413,21 +394,15 @@ export default function MafiaGame() {
     }
   };
 
-  const toggleNight = async () => {
+  const toggleNight = () => {
     const nextNight = !isNight;
     setIsNight(nextNight);
     // Directly handle audio in click handler for iOS Safari/PWA
-    // When entering night mode, only pre-unlock the silent keeper here to avoid multiple
-    // concurrent `play()` calls competing with the night loop on iOS.
-    if (nextNight) {
-      await handleAudioUnlock([nightAudioRef.current, bellAudioRef.current, bellRepeatAudioRef.current]);
-    } else {
-      void handleAudioUnlock();
-    }
+    void handleAudioUnlock(nextNight ? [nightAudioRef.current] : []);
     if (nextNight) {
       if (nightAudioRef.current) {
         nightAudioRef.current.currentTime = 0;
-        await playSound(nightAudioRef.current);
+        void playSound(nightAudioRef.current);
       }
     } else {
       nightAudioRef.current?.pause();

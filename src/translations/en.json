@@ -46,6 +46,5 @@
   "exportSuccess": "Data copied to clipboard",
   "importSuccess": "Data imported successfully",
   "importError": "Invalid data format",
-  "tapToEnableAudio": "Tap to enable audio",
-  "tapToEnableAudioIOS": "Tap to enable audio. If sound is still stuck, lock and unlock your phone, then tap again."
+  "tapToEnableAudio": "Tap to enable audio"
 }
