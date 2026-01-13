@@ -642,12 +642,7 @@ export default function MafiaGame() {
             {backArrow} {t("reset")}
           </button>
           <h1 className="text-lg font-bold tracking-tight">{t("title")}</h1>
-          <div className="flex items-center gap-2 text-[11px] font-black tracking-widest text-zinc-500">
-            <span className="hidden sm:inline">{t("cardsLeft")}</span>
-            <span className="inline-flex min-w-7 justify-center rounded-full bg-white/5 px-2 py-1 text-[11px] font-black text-zinc-200 tabular-nums">
-              {formatNumber(unseenCardsCount)}
-            </span>
-          </div>
+          <div className="flex items-center gap-2 text-[11px] font-black tracking-widest text-zinc-500 w-16" />
         </header>
 
         <main className="relative flex-1 p-6 flex flex-col items-center justify-center gap-8">
