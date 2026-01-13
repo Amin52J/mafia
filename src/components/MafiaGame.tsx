@@ -85,8 +85,6 @@ export default function MafiaGame() {
         const fresh = new Audio(src);
         fresh.loop = loop;
         fresh.preload = "auto";
-        // @ts-expect-error - playsInline exists on iOS but not in standard TS types
-        fresh.playsInline = true;
         fresh.muted = false;
         fresh.volume = audio.volume;
 
@@ -120,46 +118,6 @@ export default function MafiaGame() {
     }
   }, []);
 
-  const rebuildAudioGraph = useCallback(() => {
-    const rebuild = (ref: React.MutableRefObject<HTMLAudioElement | null>, src: string, loop = false) => {
-      ref.current?.pause();
-      const fresh = new Audio(src);
-      fresh.loop = loop;
-      fresh.preload = "auto";
-      // @ts-expect-error - playsInline exists on iOS but not in standard TS types
-      fresh.playsInline = true;
-      ref.current = fresh;
-    };
-
-    rebuild(nightAudioRef, "/night.mp3", true);
-    rebuild(bellAudioRef, "/bell.mp3", false);
-    rebuild(bellRepeatAudioRef, "/bell-repeat.mp3", true);
-    rebuild(silentAudioRef, "/silent.mp3", true);
-    if (silentAudioRef.current) silentAudioRef.current.volume = 0.001;
-  }, []);
-
-  const playWithStallDetection = useCallback(async (ref: React.MutableRefObject<HTMLAudioElement | null>) => {
-    const a = ref.current;
-    if (!a) return false;
-
-    const start = a.currentTime;
-    const ok = await safePlay(ref);
-    if (!ok) return false;
-
-    await new Promise(r => setTimeout(r, 500));
-    const advanced = ref.current && ref.current.currentTime > start;
-
-    if (!advanced) {
-      // treat as stall
-      rebuildAudioGraph();
-      const ok2 = await ensureSilentKeeper();
-      if (!ok2) return false;
-      return safePlay(ref);
-    }
-
-    return true;
-  }, [safePlay, rebuildAudioGraph, ensureSilentKeeper]);
-
   useEffect(() => {
     const handleVisibilityChange = () => {
       // For iOS, we don't necessarily need to do anything here if silent keeper is working.
@@ -179,29 +137,22 @@ export default function MafiaGame() {
         nightAudioRef.current = new Audio("/night.mp3");
         nightAudioRef.current.loop = true;
         nightAudioRef.current.preload = "auto";
-        // @ts-expect-error - playsInline exists on iOS but not in standard TS types
-        nightAudioRef.current.playsInline = true;
       }
       if (!bellAudioRef.current) {
         bellAudioRef.current = new Audio("/bell.mp3");
         bellAudioRef.current.preload = "auto";
-        // @ts-expect-error - playsInline exists on iOS but not in standard TS types
-        bellAudioRef.current.playsInline = true;
       }
       if (!bellRepeatAudioRef.current) {
         bellRepeatAudioRef.current = new Audio("/bell-repeat.mp3");
         bellRepeatAudioRef.current.loop = true;
         bellRepeatAudioRef.current.preload = "auto";
-        // @ts-expect-error - playsInline exists on iOS but not in standard TS types
-        bellRepeatAudioRef.current.playsInline = true;
       }
       if (!silentAudioRef.current) {
-        silentAudioRef.current = new Audio("/silent.mp3");
+        // Use a tiny silent base64 mp3 or just one of the files at very low volume
+        silentAudioRef.current = new Audio("data:audio/mpeg;base64,SUQzBAAAAAABAFRYWFhYAAAAHAAAAERlYnVnZ2luZyBpbmZvcm1hdGlvbgAAMi40LjADAQAAAAAAAAAAAAAA//uQZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUE9XWUVSTUVTU0FHRREAAAABvH0UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//uQZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUE9XWUVSTUVTU0FHRREAAAABvH0UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
         silentAudioRef.current.loop = true;
         silentAudioRef.current.volume = 0.001;
         silentAudioRef.current.preload = "auto";
-        // @ts-expect-error - playsInline exists on iOS but not in standard TS types
-        silentAudioRef.current.playsInline = true;
       }
 
       // Try to load
@@ -214,12 +165,11 @@ export default function MafiaGame() {
     initAudio();
 
     // Unlock on first interaction as well
-    const handleInteraction = async () => {
-      const ok = await ensureSilentKeeper();
-      if (ok) {
-        document.removeEventListener("touchstart", handleInteraction);
-        document.removeEventListener("click", handleInteraction);
-      }
+    const handleInteraction = () => {
+      void ensureSilentKeeper();
+
+      document.removeEventListener("touchstart", handleInteraction);
+      document.removeEventListener("click", handleInteraction);
     };
 
     document.addEventListener("touchstart", handleInteraction);
@@ -291,13 +241,13 @@ export default function MafiaGame() {
           const next = prev - 1;
           if (next === extraTime) {
             if (bellAudioRef.current) bellAudioRef.current.currentTime = 0;
-            void playWithStallDetection(bellAudioRef);
+            void safePlay(bellAudioRef);
           } else if (next === 0) {
             if (bellAudioRef.current) bellAudioRef.current.currentTime = 0;
-            void playWithStallDetection(bellAudioRef);
+            void safePlay(bellAudioRef);
           } else if (next === -extraTime) {
             if (bellRepeatAudioRef.current) bellRepeatAudioRef.current.currentTime = 0;
-            void playWithStallDetection(bellRepeatAudioRef);
+            void safePlay(bellRepeatAudioRef);
           }
           return next;
         });
@@ -313,7 +263,7 @@ export default function MafiaGame() {
       if (timerRef.current) clearInterval(timerRef.current);
       bellRepeatAudioRef.current?.pause();
     };
-  }, [isSpeaking, speechDuration, extraTime, playWithStallDetection]);
+  }, [isSpeaking, speechDuration, extraTime, safePlay]);
 
   const delocalizeDigits = (text: string) => {
     const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
@@ -350,16 +300,12 @@ export default function MafiaGame() {
     const nextNight = !isNight;
 
     // Ensure session is alive in the gesture
-    const ok = await ensureSilentKeeper();
-    if (!ok) {
-      setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
-      return;
-    }
+    await ensureSilentKeeper();
 
     if (nextNight) {
       if (nightAudioRef.current) {
         nightAudioRef.current.currentTime = 0;
-        await playWithStallDetection(nightAudioRef);
+        await safePlay(nightAudioRef);
       }
     } else {
       nightAudioRef.current?.pause();
@@ -372,11 +318,7 @@ export default function MafiaGame() {
     const nextSpeaking = !isSpeaking;
 
     // Ensure session is alive in the gesture
-    const ok = await ensureSilentKeeper();
-    if (!ok) {
-      setStatusMessage({ text: t("tapToEnableAudio"), type: "error" });
-      return;
-    }
+    await ensureSilentKeeper();
 
     setIsSpeaking(nextSpeaking);
   };
@@ -579,10 +521,7 @@ export default function MafiaGame() {
     setFlippedCardId(null);
 
     // Unlock audio and resume context for iOS Safari PWA
-    const ok = await ensureSilentKeeper();
-    if (!ok) {
-      console.warn("Silent keeper failed to start during startGame");
-    }
+    void ensureSilentKeeper();
   };
 
   const flipCard = (id: number) => {
