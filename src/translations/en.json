@@ -28,6 +28,7 @@
   "rename": "Rename",
   "delete": "Delete",
   "confirmDeleteScenario": "Delete this scenario?",
+  "confirmOverrideScenario": "A scenario with this name already exists. Override it?",
   "language": "Language",
   "defaultMafia": "Mafia",
   "defaultCitizen": "Citizen",

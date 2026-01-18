@@ -31,7 +31,7 @@ export default function MafiaGame() {
   const [renamingScenarioId, setRenamingScenarioId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
-  const [showIOSAudioMessage, setShowIOSAudioMessage] = useState(false);
+  const [showIOSAudioMessage, setShowIOSAudioMessage] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
   const hasShownIOSAudioMessageRef = useRef(false);
   const [isExported, setIsExported] = useState(false);
   
@@ -121,9 +121,10 @@ export default function MafiaGame() {
   const triggerIOSAudioHelp = useCallback(() => {
     const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as Window & { MSStream?: unknown }).MSStream;
     if (isIOS && !hasShownIOSAudioMessageRef.current) {
-      setShowIOSAudioMessage(true);
+      // Hide for now as per user request
+      // setShowIOSAudioMessage(true);
       hasShownIOSAudioMessageRef.current = true;
-      setTimeout(() => setShowIOSAudioMessage(false), 10000);
+      // setTimeout(() => setShowIOSAudioMessage(false), 10000);
     }
   }, []);
 
@@ -477,15 +478,57 @@ export default function MafiaGame() {
     );
   };
 
+  const persistScenarios = (next: Scenario[]) => {
+    const sorted = [...next].sort((a, b) => a.name.localeCompare(b.name));
+    setScenarios(sorted);
+    localStorage.setItem("scenarios", JSON.stringify(sorted));
+  };
+
+  const deleteScenario = (id: string) => {
+    const ok = window.confirm(t("confirmDeleteScenario"));
+    if (!ok) return;
+    persistScenarios(scenarios.filter((s) => s.id !== id));
+  };
+
+  const renameScenario = (id: string, name: string) => {
+    const nextName = name.trim();
+    if (!nextName) return;
+    persistScenarios(scenarios.map((s) => (s.id === id ? { ...s, name: nextName } : s)));
+  };
+
   const saveScenario = () => {
-    if (!scenarioName.trim()) {
+    const trimmedName = scenarioName.trim();
+    if (!trimmedName) {
       setShowSaveInput(true);
+      return;
+    }
+
+    const existingIndex = scenarios.findIndex(s => 
+      s.name === trimmedName && 
+      s.mafiasCount === mafiasCount && 
+      s.citizensCount === citizensCount
+    );
+    if (existingIndex !== -1) {
+      const ok = window.confirm(t("confirmOverrideScenario"));
+      if (!ok) return;
+
+      const updated = [...scenarios];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        notes: scenarioNotes.trim() || undefined,
+        mafiasCount,
+        citizensCount,
+        mafiaRoles,
+        citizenRoles,
+      };
+      persistScenarios(updated);
+      setShowSaveInput(false);
       return;
     }
 
     const newScenario: Scenario = {
       id: Math.random().toString(36).substring(2, 11),
-      name: scenarioName.trim(),
+      name: trimmedName,
       notes: scenarioNotes.trim() || undefined,
       mafiasCount,
       citizensCount,
@@ -493,10 +536,7 @@ export default function MafiaGame() {
       citizenRoles,
     };
 
-    const updated = [...scenarios, newScenario].sort((a, b) => a.name.localeCompare(b.name));
-    setScenarios(updated);
-    localStorage.setItem("scenarios", JSON.stringify(updated));
-    setScenarioName("");
+    persistScenarios([...scenarios, newScenario]);
     setShowSaveInput(false);
   };
 
@@ -506,6 +546,7 @@ export default function MafiaGame() {
     setMafiaRoles(s.mafiaRoles);
     setCitizenRoles(s.citizenRoles);
     setScenarioNotes(s.notes || "");
+    setScenarioName(s.name);
   };
 
   const resetSetup = () => {
@@ -621,24 +662,6 @@ export default function MafiaGame() {
   );
 
   const unseenCardsCount = cards.reduce((acc, c) => (c.isSeen ? acc : acc + 1), 0);
-
-  const persistScenarios = (next: Scenario[]) => {
-    const sorted = [...next].sort((a, b) => a.name.localeCompare(b.name));
-    setScenarios(sorted);
-    localStorage.setItem("scenarios", JSON.stringify(sorted));
-  };
-
-  const deleteScenario = (id: string) => {
-    const ok = window.confirm(t("confirmDeleteScenario"));
-    if (!ok) return;
-    persistScenarios(scenarios.filter((s) => s.id !== id));
-  };
-
-  const renameScenario = (id: string, name: string) => {
-    const nextName = name.trim();
-    if (!nextName) return;
-    persistScenarios(scenarios.map((s) => (s.id === id ? { ...s, name: nextName } : s)));
-  };
 
   if (isStarted) {
     return (
@@ -926,24 +949,33 @@ export default function MafiaGame() {
                 </label>
               </div>
               <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-                {suggestedScenarios.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => loadScenario(s)}
-                    className="shrink-0 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold hover:bg-white/10 hover:border-white/20 transition-all active:scale-95"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <span className="max-w-[12rem] truncate">
-                        {localizeDigits(s.name)}
+                {suggestedScenarios.map((s) => {
+                  const isSelected = s.name === scenarioName;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => loadScenario(s)}
+                      className={`shrink-0 px-4 py-2 rounded-2xl text-xs font-bold transition-all active:scale-95 ${
+                        isSelected 
+                          ? "bg-white text-black shadow-lg" 
+                          : "bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20"
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <span className="max-w-[12rem] truncate">
+                          {localizeDigits(s.name)}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          isSelected ? "bg-black/10 text-black/60" : "bg-white/5 text-zinc-300"
+                        }`}>
+                          <span className="text-mafia">{formatNumber(s.mafiasCount)}</span>
+                          <span className={isSelected ? "text-black/40" : "text-zinc-500"}>/</span>
+                          <span className="text-citizen">{formatNumber(s.citizensCount)}</span>
+                        </span>
                       </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-black text-zinc-300">
-                        <span className="text-mafia">{formatNumber(s.mafiasCount)}</span>
-                        <span className="text-zinc-500">/</span>
-                        <span className="text-citizen">{formatNumber(s.citizensCount)}</span>
-                      </span>
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

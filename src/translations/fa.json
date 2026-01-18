@@ -28,6 +28,7 @@
   "rename": "تغییر نام",
   "delete": "حذف",
   "confirmDeleteScenario": "این سناریو حذف شود؟",
+  "confirmOverrideScenario": "سناریویی با این نام وجود دارد. جایگزین شود؟",
   "language": "زبان",
   "defaultMafia": "مافیا",
   "defaultCitizen": "شهروند",
