@@ -4,6 +4,8 @@ import { useState, useEffect, useSyncExternalStore, useRef, useCallback, type Re
 import { useLanguage } from "@/hooks/useLanguage";
 import { Scenario, Card } from "@/types/game";
 
+const NIGHT_SONGS = Array.from({ length: 12 }, (_, i) => `/night-${String(i + 1).padStart(2, "0")}.mp3`);
+
 export default function MafiaGame() {
   const { t, language, setLanguage } = useLanguage();
   const backArrow = language === "fa" ? "→" : "←";
@@ -54,7 +56,6 @@ export default function MafiaGame() {
   const [countdown, setCountdown] = useState(speechDuration);
   const [isSpeaking, setIsSpeaking] = useState(false);
   
-  const NIGHT_SONGS = useMemo(() => Array.from({ length: 12 }, (_, i) => `/night-${String(i + 1).padStart(2, '0')}.mp3`), []);
   const playedSongsRef = useRef<Set<string>>(new Set());
   const nightAudioRef = useRef<HTMLAudioElement | null>(null);
   const bellAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -99,7 +100,7 @@ export default function MafiaGame() {
     nightAudioRef.current.src = randomSong;
     nightAudioRef.current.load();
     void playSound(nightAudioRef.current);
-  }, [NIGHT_SONGS, playSound]);
+  }, [playSound]);
 
   useEffect(() => {
     if (nightAudioRef.current) {
@@ -222,7 +223,7 @@ export default function MafiaGame() {
       document.removeEventListener("touchstart", handleInteraction);
       document.removeEventListener("click", handleInteraction);
     };
-  }, [handleAudioUnlock, NIGHT_SONGS]);
+  }, [handleAudioUnlock]);
 
   const saveInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
