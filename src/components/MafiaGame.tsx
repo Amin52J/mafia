@@ -647,7 +647,7 @@ export default function MafiaGame() {
         className="relative flex flex-col min-h-dvh bg-background text-foreground font-sans max-w-lg mx-auto overflow-x-hidden"
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_55%)]" />
-        <header className="p-4 flex items-center justify-between glass-dark sticky top-0 z-50">
+        <header className="p-4 pt-[calc(1rem+env(safe-area-inset-top))] flex items-center justify-between glass-dark sticky top-0 z-50">
           <button 
             onClick={restart}
             className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
@@ -839,14 +839,14 @@ export default function MafiaGame() {
           )}
         </main>
       {showIOSAudioMessage && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-down w-[90%] max-w-sm pointer-events-none">
+        <div className="fixed top-[calc(6rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-[100] animate-slide-down w-[90%] max-w-sm pointer-events-none">
           <div className="px-6 py-4 rounded-3xl font-black text-xs shadow-2xl border border-white/10 glass-dark text-zinc-100 text-center leading-relaxed backdrop-blur-xl">
             {localizeDigits(t("iosAudioHelp"))}
           </div>
         </div>
       )}
       {statusMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-slide-up pointer-events-none">
+        <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[100] animate-slide-up pointer-events-none">
           <div className={`px-6 py-3 rounded-2xl font-black text-sm shadow-2xl border border-white/10 glass ${
             statusMessage.type === "success" ? "text-emerald-400" : "text-red-400"
           }`}>
@@ -864,7 +864,7 @@ export default function MafiaGame() {
       className="relative flex flex-col min-h-dvh bg-background text-foreground font-sans max-w-lg mx-auto overflow-x-hidden"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_55%)]" />
-      <header className="p-6 flex justify-between items-center sticky top-0 z-50 glass-dark">
+      <header className="p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center sticky top-0 z-50 glass-dark">
         <h1 className="text-2xl font-black tracking-tighter italic uppercase text-white">
           {t("title")}
         </h1>
@@ -1291,14 +1291,14 @@ export default function MafiaGame() {
         </div>
       )}
       {showIOSAudioMessage && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-slide-down w-[90%] max-w-sm pointer-events-none">
+        <div className="fixed top-[calc(6rem+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 z-[100] animate-slide-down w-[90%] max-w-sm pointer-events-none">
           <div className="px-6 py-4 rounded-3xl font-black text-xs shadow-2xl border border-white/10 glass-dark text-zinc-100 text-center leading-relaxed backdrop-blur-xl">
             {localizeDigits(t("iosAudioHelp"))}
           </div>
         </div>
       )}
       {statusMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-slide-up pointer-events-none">
+        <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[100] animate-slide-up pointer-events-none">
           <div className={`px-6 py-3 rounded-2xl font-black text-sm shadow-2xl border border-white/10 glass ${
             statusMessage.type === "success" ? "text-emerald-400" : "text-red-400"
           }`}>

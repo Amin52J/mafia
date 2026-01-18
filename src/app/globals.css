@@ -81,6 +81,14 @@ body {
   animation: zoom-in 250ms ease-out both;
 }
 
+@utility safe-pt {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility safe-top {
+  top: env(safe-area-inset-top);
+}
+
 @utility safe-pb {
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
