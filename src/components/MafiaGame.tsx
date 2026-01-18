@@ -36,6 +36,7 @@ export default function MafiaGame() {
   const [showIOSAudioMessage, setShowIOSAudioMessage] = useState(false); // eslint-disable-line @typescript-eslint/no-unused-vars
   const hasShownIOSAudioMessageRef = useRef(false);
   const [isExported, setIsExported] = useState(false);
+  const [isAudioInitialized, setIsAudioInitialized] = useState(false);
   
   // Game Controls State
   const [isNight, setIsNight] = useState(false);
@@ -98,7 +99,6 @@ export default function MafiaGame() {
     playedSongsRef.current.add(randomSong);
     
     nightAudioRef.current.src = randomSong;
-    nightAudioRef.current.load();
     void playSound(nightAudioRef.current);
   }, [playSound]);
 
@@ -110,9 +110,9 @@ export default function MafiaGame() {
         }
       };
     }
-  }, [isNight, playRandomNightSong]);
+  }, [isNight, playRandomNightSong, isAudioInitialized]);
 
-  const handleAudioUnlock = useCallback(async (skipElements: (HTMLAudioElement | null)[] = []) => {
+  const handleAudioUnlock = useCallback(async () => {
     // On Chrome, we only need to do this once.
     // On iOS, we might need to do it again after interruptions, but usually once per session is okay.
     const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as Window & { MSStream?: unknown }).MSStream;
@@ -126,7 +126,7 @@ export default function MafiaGame() {
     ];
 
     for (const audio of audios) {
-      if (audio && !skipElements.includes(audio)) {
+      if (audio) {
         // Skip if already playing and unmuted (likely currently in use)
         if (!audio.paused && !audio.muted && audio !== silentAudioRef.current) continue;
         // Skip silent keeper if already playing
@@ -207,6 +207,7 @@ export default function MafiaGame() {
     };
 
     initAudio();
+    setIsAudioInitialized(true);
 
     // Unlock on first interaction as well
     const handleInteraction = () => {
@@ -349,12 +350,12 @@ export default function MafiaGame() {
     }
   };
 
-  const toggleNight = () => {
+  const toggleNight = async () => {
     triggerIOSAudioHelp();
     const nextNight = !isNight;
     setIsNight(nextNight);
     // Directly handle audio in click handler for iOS Safari/PWA
-    void handleAudioUnlock(nextNight ? [nightAudioRef.current] : []);
+    await handleAudioUnlock();
     if (nextNight) {
       playRandomNightSong();
     } else {
@@ -362,12 +363,12 @@ export default function MafiaGame() {
     }
   };
 
-  const toggleSpeaking = () => {
+  const toggleSpeaking = async () => {
     triggerIOSAudioHelp();
     const nextSpeaking = !isSpeaking;
     setIsSpeaking(nextSpeaking);
     // Pre-unlock sounds on click
-    void handleAudioUnlock();
+    await handleAudioUnlock();
   };
 
   useEffect(() => {
@@ -583,7 +584,7 @@ export default function MafiaGame() {
     setShowSaveInput(false);
   };
 
-  const startGame = () => {
+  const startGame = async () => {
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 
     const allRoles = [
@@ -609,7 +610,7 @@ export default function MafiaGame() {
     playedSongsRef.current.clear();
 
     // Unlock audio and resume context for iOS Safari PWA
-    void handleAudioUnlock();
+    await handleAudioUnlock();
   };
 
   const flipCard = (id: number) => {

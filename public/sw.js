@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mafia-v10';
+const CACHE_NAME = 'mafia-v11';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
