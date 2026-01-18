@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mafia-v8';
+const CACHE_NAME = 'mafia-v10';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
@@ -6,7 +6,18 @@ const ASSETS_TO_CACHE = [
   '/icon-512.svg',
   '/bell.mp3',
   '/bell-repeat.mp3',
-  '/night.mp3',
+  '/night-01.mp3',
+  '/night-02.mp3',
+  '/night-03.mp3',
+  '/night-04.mp3',
+  '/night-05.mp3',
+  '/night-06.mp3',
+  '/night-07.mp3',
+  '/night-08.mp3',
+  '/night-09.mp3',
+  '/night-10.mp3',
+  '/night-11.mp3',
+  '/night-12.mp3',
 ];
 
 // Install event - cache core assets

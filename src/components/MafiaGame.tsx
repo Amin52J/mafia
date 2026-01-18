@@ -54,6 +54,8 @@ export default function MafiaGame() {
   const [countdown, setCountdown] = useState(speechDuration);
   const [isSpeaking, setIsSpeaking] = useState(false);
   
+  const NIGHT_SONGS = useMemo(() => Array.from({ length: 12 }, (_, i) => `/night-${String(i + 1).padStart(2, '0')}.mp3`), []);
+  const playedSongsRef = useRef<Set<string>>(new Set());
   const nightAudioRef = useRef<HTMLAudioElement | null>(null);
   const bellAudioRef = useRef<HTMLAudioElement | null>(null);
   const bellRepeatAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -77,6 +79,37 @@ export default function MafiaGame() {
       setTimeout(() => setStatusMessage(null), 5000);
     }
   }, [t]);
+
+  const playRandomNightSong = useCallback(() => {
+    if (!nightAudioRef.current) return;
+
+    let availableSongs = NIGHT_SONGS.filter(s => !playedSongsRef.current.has(s));
+    if (availableSongs.length === 0) {
+      const currentSrc = nightAudioRef.current.src;
+      playedSongsRef.current.clear();
+      // Start over with all songs, but avoid immediate repetition of the last song if possible
+      availableSongs = NIGHT_SONGS.filter(s => !currentSrc.endsWith(s));
+      if (availableSongs.length === 0) availableSongs = [...NIGHT_SONGS];
+    }
+
+    const randomIndex = Math.floor(Math.random() * availableSongs.length);
+    const randomSong = availableSongs[randomIndex];
+    playedSongsRef.current.add(randomSong);
+    
+    nightAudioRef.current.src = randomSong;
+    nightAudioRef.current.load();
+    void playSound(nightAudioRef.current);
+  }, [NIGHT_SONGS, playSound]);
+
+  useEffect(() => {
+    if (nightAudioRef.current) {
+      nightAudioRef.current.onended = () => {
+        if (isNight) {
+          playRandomNightSong();
+        }
+      };
+    }
+  }, [isNight, playRandomNightSong]);
 
   const handleAudioUnlock = useCallback(async (skipElements: (HTMLAudioElement | null)[] = []) => {
     // On Chrome, we only need to do this once.
@@ -144,8 +177,8 @@ export default function MafiaGame() {
   useEffect(() => {
     const initAudio = () => {
       if (!nightAudioRef.current) {
-        nightAudioRef.current = new Audio("/night.mp3");
-        nightAudioRef.current.loop = true;
+        nightAudioRef.current = new Audio(NIGHT_SONGS[0]);
+        nightAudioRef.current.loop = false;
         nightAudioRef.current.preload = "auto";
       }
       if (!bellAudioRef.current) {
@@ -189,7 +222,7 @@ export default function MafiaGame() {
       document.removeEventListener("touchstart", handleInteraction);
       document.removeEventListener("click", handleInteraction);
     };
-  }, [handleAudioUnlock]);
+  }, [handleAudioUnlock, NIGHT_SONGS]);
 
   const saveInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -242,20 +275,13 @@ export default function MafiaGame() {
   }, [extraTime]);
 
   useEffect(() => {
-    if (isNight) {
-      if (nightAudioRef.current && nightAudioRef.current.paused) {
-        nightAudioRef.current.currentTime = 0;
-        void playSound(nightAudioRef.current);
-      }
-    } else {
-      if (nightAudioRef.current) {
-        nightAudioRef.current.pause();
-      }
+    if (!isNight) {
+      nightAudioRef.current?.pause();
     }
     return () => {
       nightAudioRef.current?.pause();
     };
-  }, [isNight, playSound]);
+  }, [isNight]);
 
   useEffect(() => {
     if (isSpeaking) {
@@ -329,10 +355,7 @@ export default function MafiaGame() {
     // Directly handle audio in click handler for iOS Safari/PWA
     void handleAudioUnlock(nextNight ? [nightAudioRef.current] : []);
     if (nextNight) {
-      if (nightAudioRef.current) {
-        nightAudioRef.current.currentTime = 0;
-        void playSound(nightAudioRef.current);
-      }
+      playRandomNightSong();
     } else {
       nightAudioRef.current?.pause();
     }
@@ -582,6 +605,7 @@ export default function MafiaGame() {
     setCards(shuffled);
     setIsStarted(true);
     setFlippedCardId(null);
+    playedSongsRef.current.clear();
 
     // Unlock audio and resume context for iOS Safari PWA
     void handleAudioUnlock();
@@ -610,6 +634,7 @@ export default function MafiaGame() {
     setFlippedCardId(null);
     setIsNight(false);
     setIsSpeaking(false);
+    playedSongsRef.current.clear();
   };
 
   const exportData = () => {
