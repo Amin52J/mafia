@@ -14,6 +14,7 @@
   "english": "انگلیسی",
   "persian": "فارسی",
   "totalPlayers": "مجموع بازیکن‌ها",
+  "playersCount": "{count} نفره",
   "cardsLeft": "کارت‌های باقی‌مانده",
   "increase": "افزایش",
   "decrease": "کاهش",
