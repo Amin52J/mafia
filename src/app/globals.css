@@ -53,6 +53,14 @@ body {
   backface-visibility: hidden;
 }
 
+@utility perspective-1000 {
+  perspective: 1000px;
+}
+
+@utility ease-expo {
+  transition-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
 @utility glass {
   background: var(--color-card-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);

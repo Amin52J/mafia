@@ -27,6 +27,8 @@ export default function MafiaGame() {
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedCardId, setFlippedCardId] = useState<number | null>(null);
   const [revealedCardId, setRevealedCardId] = useState<number | null>(null);
+  const [throwingCardId, setThrowingCardId] = useState<number | null>(null);
+  const [throwConfig, setThrowConfig] = useState({ x: 0, y: 0, rotate: 0 });
   const [scenarioName, setScenarioName] = useState("");
   const [scenarioNotes, setScenarioNotes] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
@@ -257,7 +259,7 @@ export default function MafiaGame() {
   }, [renamingScenarioId]);
 
   useEffect(() => {
-    if (showSaveInput || showManageScenarios) {
+    if (showSaveInput || showManageScenarios || flippedCardId !== null || throwingCardId !== null) {
       // Prevent background scroll
       document.body.style.overflow = "hidden";
     } else {
@@ -267,7 +269,7 @@ export default function MafiaGame() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [showSaveInput, showManageScenarios]);
+  }, [showSaveInput, showManageScenarios, flippedCardId, throwingCardId]);
 
   useEffect(() => {
     localStorage.setItem("speechDuration", speechDuration.toString());
@@ -638,7 +640,7 @@ export default function MafiaGame() {
   };
 
   const flipCard = (id: number) => {
-    if (flippedCardId !== null) return;
+    if (flippedCardId !== null || throwingCardId === id) return;
 
     const target = cards.find((c) => c.id === id);
     if (!target || target.isSeen) return;
@@ -647,16 +649,33 @@ export default function MafiaGame() {
     // Delay the actual rotation (back side reveal)
     setTimeout(() => {
       setRevealedCardId(id);
-    }, 100);
+    }, 150);
     setCards(prev => prev.map(c => c.id === id ? { ...c, isFlipped: true } : c));
   };
 
   const markSeen = (id: number) => {
-    setCards(prev =>
-      prev.map(c => (c.id === id ? { ...c, isSeen: true, isFlipped: false } : c))
-    );
+    if (throwingCardId !== null) return;
+
+    const angle = Math.random() * 2 * Math.PI;
+    const distance = 150; // percentage to be well off-screen
+    const x = Math.cos(angle) * distance;
+    const y = Math.sin(angle) * distance;
+    const rotate = (Math.random() - 0.5) * 720; // 2 full random rotations
+
+    setThrowConfig({ x, y, rotate });
+    setThrowingCardId(id);
+    
+    // Clear flipped and revealed state immediately so other cards can be clicked
     setFlippedCardId(null);
     setRevealedCardId(null);
+
+    // Wait for the throwing animation (1000ms) before final cleanup
+    setTimeout(() => {
+      setCards(prev =>
+        prev.map(c => (c.id === id ? { ...c, isSeen: true, isFlipped: false } : c))
+      );
+      setThrowingCardId(null);
+    }, 1000);
   };
 
   const restart = () => {
@@ -664,6 +683,7 @@ export default function MafiaGame() {
     setCards([]);
     setFlippedCardId(null);
     setRevealedCardId(null);
+    setThrowingCardId(null);
     setIsNight(false);
     setIsSpeaking(false);
     playedSongsRef.current.clear();
@@ -724,7 +744,7 @@ export default function MafiaGame() {
     return (
       <div
         dir={language === "fa" ? "rtl" : "ltr"}
-        className="relative flex flex-col min-h-dvh bg-background text-foreground font-sans max-w-lg mx-auto overflow-x-hidden"
+        className={`relative flex flex-col min-h-dvh bg-background text-foreground font-sans max-w-lg mx-auto ${flippedCardId !== null || throwingCardId !== null ? "overflow-hidden" : "overflow-x-hidden"}`}
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_55%)]" />
         <header className="p-4 pt-[calc(1rem+env(safe-area-inset-top))] flex items-center justify-between glass-dark sticky top-0 z-50">
@@ -740,13 +760,14 @@ export default function MafiaGame() {
 
         <main className="relative flex-1 p-4 sm:p-6 flex flex-col items-center justify-center">
           {unseenCardsCount > 0 ? (
-            <div className="relative w-full aspect-square max-w-[min(90vw,min(70vh,500px))] mx-auto animate-slide-up">
+            <div className="relative w-full aspect-square max-w-[min(90vw,min(70vh,500px))] mx-auto animate-slide-up perspective-1000">
               {cards.map((card, index) => {
                 const angle = (index * 2 * Math.PI) / cards.length - Math.PI / 2;
                 const x = Math.cos(angle) * cardDimensions.r;
                 const y = Math.sin(angle) * cardDimensions.r;
                 const isFlipped = flippedCardId === card.id;
                 const isRevealed = revealedCardId === card.id;
+                const isThrowing = throwingCardId === card.id;
 
                 if (card.isSeen) {
                   return (
@@ -769,32 +790,35 @@ export default function MafiaGame() {
                   <div
                     key={card.id}
                     onClick={() => flipCard(card.id)}
-                    className={`absolute cursor-pointer transition-all duration-700 preserve-3d ${
-                      isFlipped 
-                        ? "z-50" 
-                        : `z-10 ${flippedCardId !== null ? "opacity-20 blur-sm scale-75" : "hover:scale-110"}`
+                    className={`absolute cursor-pointer transition-all duration-1000 ease-expo preserve-3d ${
+                      isFlipped
+                        ? "z-50 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]" 
+                        : isThrowing
+                        ? "z-40 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]"
+                        : `z-10 shadow-2xl rounded-lg sm:rounded-xl ${flippedCardId !== null ? "" : "hover:scale-110"}`
                     }`}
                     style={{
-                      width: isFlipped ? "min(80vw, 320px)" : `${cardDimensions.w}%`,
-                      height: isFlipped ? "min(106vw, 426px)" : `${cardDimensions.h}%`,
-                      left: isFlipped ? "50%" : `${50 + x}%`,
-                      top: isFlipped ? "50%" : `${50 + y}%`,
-                      transform: `translate(-50%, -50%) ${isRevealed ? "rotateY(180deg)" : "rotateY(0deg)"}`
+                      width: (isFlipped || isThrowing) ? "min(80vw, 320px)" : `${cardDimensions.w}%`,
+                      height: (isFlipped || isThrowing) ? "min(106vw, 426px)" : `${cardDimensions.h}%`,
+                      left: (isFlipped || isThrowing) ? "50%" : `${50 + x}%`,
+                      top: (isFlipped || isThrowing) ? "50%" : `${50 + y}%`,
+                      transform: isThrowing
+                        ? `translate(-50%, -50%) translate(${throwConfig.x}vw, ${throwConfig.y}vh) rotate(${throwConfig.rotate}deg) rotateY(180deg) scale(0.5)`
+                        : `translate(-50%, -50%) ${isRevealed ? "rotateY(180deg)" : "rotateY(0deg)"}`,
                     }}
                   >
                     {/* Front Side */}
-                    <div className={`absolute inset-0 glass ${isFlipped ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden overflow-hidden transition-all duration-700 ${isFlipped ? "shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)]" : "shadow-2xl"}`}>
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50" />
+                    <div className={`absolute inset-0 glass ${isFlipped || isThrowing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden overflow-hidden transition-all duration-1000 ease-expo`}>
                       <div className="relative z-10 flex flex-col items-center gap-1">
-                        <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums transition-all duration-700 aspect-square ${isFlipped ? "w-24 h-24 text-4xl sm:w-32 sm:h-32 sm:text-6xl" : "w-8 h-8 text-xs"}`}>
+                        <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums transition-all duration-1000 ease-expo aspect-square ${isFlipped || isThrowing ? "w-28 h-28 text-5xl sm:w-40 sm:h-40 sm:text-7xl" : "w-8 h-8 text-xs"}`}>
                           {formatNumber(card.id + 1)}
                         </div>
                       </div>
                     </div>
 
                     {/* Back Side */}
-                    <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)] backface-hidden p-6 text-center border-4 transition-all duration-700 ${card.side === "mafia" ? "border-mafia" : "border-citizen"} ${isFlipped ? "shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)]" : "shadow-2xl"}`}>
-                      <div className="w-full flex-1 flex flex-col items-center justify-center gap-2">
+                    <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)] backface-hidden p-6 text-center border-4 transition-all duration-1000 ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
+                      <div className="w-full flex-1 flex flex-col items-center justify-center gap-2 relative z-10">
                         <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-400">
                           {card.side === "mafia" ? t("defaultMafia") : t("defaultCitizen")}
                         </div>
@@ -806,7 +830,7 @@ export default function MafiaGame() {
                           e.stopPropagation();
                           markSeen(card.id);
                         }}
-                        className="w-full py-4 bg-black text-white rounded-xl text-sm font-bold leading-none flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg"
+                        className="w-full py-4 bg-black text-white rounded-xl text-sm font-bold leading-none flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg relative z-10"
                       >
                         <Icon className="h-5 w-5">
                           <path d="M20 6 9 17l-5-5" />
