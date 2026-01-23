@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore, useRef, useCallback, type ReactNode } from "react";
+import { useState, useEffect, useSyncExternalStore, useRef, useCallback, useMemo, type ReactNode } from "react";
 import { useLanguage } from "@/hooks/useLanguage";
 import { Scenario, Card } from "@/types/game";
 
@@ -26,6 +26,7 @@ export default function MafiaGame() {
   const [isStarted, setIsStarted] = useState(false);
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedCardId, setFlippedCardId] = useState<number | null>(null);
+  const [revealedCardId, setRevealedCardId] = useState<number | null>(null);
   const [scenarioName, setScenarioName] = useState("");
   const [scenarioNotes, setScenarioNotes] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
@@ -383,6 +384,30 @@ export default function MafiaGame() {
     }
   }, []);
 
+  const totalPlayers = mafiasCount + citizensCount;
+
+  const cardDimensions = useMemo(() => {
+    const n = cards.length || totalPlayers || 12;
+    const sinHalfAngle = Math.sin(Math.PI / n);
+    
+    // No-overlap condition: Chord distance between centers (S) >= sqrt(W^2 + H^2)
+    // This ensures that upright rectangles of size WxH do not overlap on a circle.
+    // S = 2 * R * sin(PI/n)
+    // H = W / 0.75
+    // sqrt(W^2 + H^2) = W * sqrt(1 + (1/0.75)^2) ≈ 1.667 * W
+    // We also want to keep the cards within the container: R + H/2 <= 49%
+    // W ≈ (98 * sinHalfAngle) / (1.667 + 1.333 * sinHalfAngle)
+    let w = (98 * sinHalfAngle) / (1.667 + 1.333 * sinHalfAngle);
+
+    w = Math.min(w, 28);
+    w = Math.max(w, 4);
+    
+    const h = w / 0.75;
+    const r = Math.min(44, 49 - h / 2);
+    
+    return { w, h, r };
+  }, [cards.length, totalPlayers]);
+
   if (!isClient) {
     return <div className="min-h-screen bg-black" />;
   }
@@ -413,7 +438,6 @@ export default function MafiaGame() {
     });
   };
 
-  const totalPlayers = mafiasCount + citizensCount;
   const numberFormatter = new Intl.NumberFormat(
     language === "fa" ? "fa-IR-u-nu-arabext" : "en-US"
   );
@@ -620,6 +644,10 @@ export default function MafiaGame() {
     if (!target || target.isSeen) return;
 
     setFlippedCardId(id);
+    // Delay the actual rotation (back side reveal)
+    setTimeout(() => {
+      setRevealedCardId(id);
+    }, 100);
     setCards(prev => prev.map(c => c.id === id ? { ...c, isFlipped: true } : c));
   };
 
@@ -628,12 +656,14 @@ export default function MafiaGame() {
       prev.map(c => (c.id === id ? { ...c, isSeen: true, isFlipped: false } : c))
     );
     setFlippedCardId(null);
+    setRevealedCardId(null);
   };
 
   const restart = () => {
     setIsStarted(false);
     setCards([]);
     setFlippedCardId(null);
+    setRevealedCardId(null);
     setIsNight(false);
     setIsSpeaking(false);
     playedSongsRef.current.clear();
@@ -708,16 +738,28 @@ export default function MafiaGame() {
           <div className="flex items-center gap-2 text-[11px] font-black tracking-widest text-zinc-500 w-16" />
         </header>
 
-        <main className="relative flex-1 p-6 flex flex-col items-center justify-center gap-8">
+        <main className="relative flex-1 p-4 sm:p-6 flex flex-col items-center justify-center">
           {unseenCardsCount > 0 ? (
-            <div className="grid w-full max-w-lg grid-cols-2 gap-4 sm:grid-cols-3 animate-slide-up">
-              {cards.map((card) => {
-                // Keep grid positions stable, but make seen cards truly empty so they can't "ghost" during 3D flips.
+            <div className="relative w-full aspect-square max-w-[min(90vw,min(70vh,500px))] mx-auto animate-slide-up">
+              {cards.map((card, index) => {
+                const angle = (index * 2 * Math.PI) / cards.length - Math.PI / 2;
+                const x = Math.cos(angle) * cardDimensions.r;
+                const y = Math.sin(angle) * cardDimensions.r;
+                const isFlipped = flippedCardId === card.id;
+                const isRevealed = revealedCardId === card.id;
+
                 if (card.isSeen) {
                   return (
                     <div
                       key={card.id}
-                      className={`relative aspect-[3/4] rounded-3xl`}
+                      className="absolute"
+                      style={{
+                        width: `${cardDimensions.w}%`,
+                        height: `${cardDimensions.h}%`,
+                        left: `${50 + x}%`,
+                        top: `${50 + y}%`,
+                        transform: "translate(-50%, -50%)",
+                      }}
                       aria-hidden
                     />
                   );
@@ -727,27 +769,36 @@ export default function MafiaGame() {
                   <div
                     key={card.id}
                     onClick={() => flipCard(card.id)}
-                    className={`relative aspect-[3/4] rounded-3xl cursor-pointer transition-all duration-700 preserve-3d group ${
-                      flippedCardId === card.id ? "[transform:rotateY(180deg)]" : ""
-                    } ${flippedCardId !== null && flippedCardId !== card.id ? "opacity-30 blur-[1px] scale-95" : "hover:scale-[1.02]"}`}
+                    className={`absolute cursor-pointer transition-all duration-700 preserve-3d ${
+                      isFlipped 
+                        ? "z-50" 
+                        : `z-10 ${flippedCardId !== null ? "opacity-20 blur-sm scale-75" : "hover:scale-110"}`
+                    }`}
+                    style={{
+                      width: isFlipped ? "min(80vw, 320px)" : `${cardDimensions.w}%`,
+                      height: isFlipped ? "min(106vw, 426px)" : `${cardDimensions.h}%`,
+                      left: isFlipped ? "50%" : `${50 + x}%`,
+                      top: isFlipped ? "50%" : `${50 + y}%`,
+                      transform: `translate(-50%, -50%) ${isRevealed ? "rotateY(180deg)" : "rotateY(0deg)"}`
+                    }}
                   >
                     {/* Front Side */}
-                    <div className="absolute inset-0 glass rounded-3xl border border-white/10 flex flex-col items-center justify-center backface-hidden shadow-2xl overflow-hidden">
+                    <div className={`absolute inset-0 glass ${isFlipped ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden overflow-hidden transition-all duration-700 ${isFlipped ? "shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)]" : "shadow-2xl"}`}>
                       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50" />
-                      <div className="relative z-10 flex flex-col items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xl font-black text-zinc-500 tabular-nums">
+                      <div className="relative z-10 flex flex-col items-center gap-1">
+                        <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums transition-all duration-700 aspect-square ${isFlipped ? "w-24 h-24 text-4xl sm:w-32 sm:h-32 sm:text-6xl" : "w-8 h-8 text-xs"}`}>
                           {formatNumber(card.id + 1)}
                         </div>
-                        <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">
-                          {t("tapToReveal")}
-                        </span>
                       </div>
                     </div>
 
                     {/* Back Side */}
-                    <div className={`absolute inset-0 bg-zinc-100 text-black rounded-3xl flex flex-col items-center justify-between [transform:rotateY(180deg)] backface-hidden p-6 text-center shadow-2xl border-4 ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
-                      <div className="w-full">
-                        <div className="text-2xl font-black tracking-tight leading-tight mt-8">{card.role}</div>
+                    <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)] backface-hidden p-6 text-center border-4 transition-all duration-700 ${card.side === "mafia" ? "border-mafia" : "border-citizen"} ${isFlipped ? "shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)]" : "shadow-2xl"}`}>
+                      <div className="w-full flex-1 flex flex-col items-center justify-center gap-2">
+                        <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-400">
+                          {card.side === "mafia" ? t("defaultMafia") : t("defaultCitizen")}
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">{card.role}</div>
                       </div>
 
                       <button
@@ -755,7 +806,7 @@ export default function MafiaGame() {
                           e.stopPropagation();
                           markSeen(card.id);
                         }}
-                        className="w-full py-3 bg-black text-white rounded-xl text-sm font-bold leading-none flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg"
+                        className="w-full py-4 bg-black text-white rounded-xl text-sm font-bold leading-none flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg"
                       >
                         <Icon className="h-5 w-5">
                           <path d="M20 6 9 17l-5-5" />

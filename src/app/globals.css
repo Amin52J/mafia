@@ -54,8 +54,7 @@ body {
 }
 
 @utility glass {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
+  background: var(--color-card-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
