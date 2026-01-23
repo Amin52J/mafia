@@ -808,7 +808,7 @@ export default function MafiaGame() {
                     }}
                   >
                     {/* Front Side */}
-                    <div className={`absolute inset-0 glass ${isFlipped || isThrowing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden overflow-hidden transition-all duration-1000 ease-expo`}>
+                    <div className={`absolute inset-0 glass ${isFlipped || isThrowing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden [transform:translateZ(1px)] transition-all duration-1000 ease-expo`}>
                       <div className="relative z-10 flex flex-col items-center gap-1">
                         <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums transition-all duration-1000 ease-expo aspect-square ${isFlipped || isThrowing ? "w-28 h-28 text-5xl sm:w-40 sm:h-40 sm:text-7xl" : "w-8 h-8 text-xs"}`}>
                           {formatNumber(card.id + 1)}
@@ -817,7 +817,7 @@ export default function MafiaGame() {
                     </div>
 
                     {/* Back Side */}
-                    <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)] backface-hidden p-6 text-center border-4 transition-all duration-1000 ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
+                    <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)_translateZ(1px)] backface-hidden p-6 text-center border-4 transition-all duration-1000 ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
                       <div className="w-full flex-1 flex flex-col items-center justify-center gap-2 relative z-10">
                         <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-400">
                           {card.side === "mafia" ? t("defaultMafia") : t("defaultCitizen")}
