@@ -27,6 +27,7 @@ export default function MafiaGame() {
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedCardId, setFlippedCardId] = useState<number | null>(null);
   const [revealedCardId, setRevealedCardId] = useState<number | null>(null);
+  const [isTrembling, setIsTrembling] = useState(false);
   const [dismissingCardId, setDismissingCardId] = useState<number | null>(null);
   const [throwingCardId, setThrowingCardId] = useState<number | null>(null);
   const [throwConfig, setThrowConfig] = useState({ x: 0, y: 0, rotate: 0 });
@@ -649,10 +650,15 @@ export default function MafiaGame() {
 
     setFlippedCardId(id);
     setLastFlippedSide(target.side);
-    // Delay the actual rotation (back side reveal)
+    
+    setIsTrembling(true);
+    // Card grows for 1000ms.
+    // Total build-up time before flip is now 1400ms (1000ms growth + 400ms pause)
     setTimeout(() => {
+      setIsTrembling(false);
       setRevealedCardId(id);
-    }, 150);
+    }, 1400);
+
     setCards(prev => prev.map(c => c.id === id ? { ...c, isFlipped: true } : c));
   };
 
@@ -661,6 +667,7 @@ export default function MafiaGame() {
 
     setDismissingCardId(id);
     setRevealedCardId(null);
+    setIsTrembling(false);
 
     // Wait for light show fade-out before throwing
     setTimeout(() => {
@@ -684,7 +691,7 @@ export default function MafiaGame() {
         );
         setThrowingCardId(null);
       }, 1000);
-    }, 600);
+    }, 400);
   };
 
   const restart = () => {
@@ -692,6 +699,7 @@ export default function MafiaGame() {
     setCards([]);
     setFlippedCardId(null);
     setRevealedCardId(null);
+    setIsTrembling(false);
     setDismissingCardId(null);
     setThrowingCardId(null);
     setLastFlippedSide(null);
@@ -776,14 +784,14 @@ export default function MafiaGame() {
               {/* Light Show Effect - Placed here to be between normal cards (z-10) and active cards (z-40/50) */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200vmax] h-[200vmax] pointer-events-none z-20 overflow-hidden">
                 {/* Transient Layer: Ambient Glow & Rotating Beams - Fades out completely when card is dismissed */}
-                <div className={`absolute inset-0 transition-opacity ${revealedCardId !== null ? "duration-1000 opacity-100" : "duration-500 opacity-0"}`}>
-                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vmax] h-[100vmax] rounded-full blur-[100px] opacity-40 animate-breathe transition-colors duration-1000 ${lastFlippedSide === "mafia" ? "bg-mafia" : "bg-citizen"}`} />
-                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[200vmax] h-[200vmax] opacity-20 animate-spin-slow [mask-image:radial-gradient(circle,white,transparent_70%)] ${lastFlippedSide === "mafia" ? "bg-[conic-gradient(from_0deg,transparent,var(--color-mafia),transparent,var(--color-mafia),transparent)]" : "bg-[conic-gradient(from_0deg,transparent,var(--color-citizen),transparent,var(--color-citizen),transparent)]"}`} />
+                <div className={`absolute inset-0 transition-opacity ${flippedCardId !== null ? "duration-1000 opacity-100" : "duration-0 opacity-0"}`}>
+                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vmax] h-[100vmax] rounded-full blur-[100px] opacity-40 animate-breathe transition-colors duration-1000 ${revealedCardId === null ? "bg-white/40" : (lastFlippedSide === "mafia" ? "bg-mafia" : "bg-citizen")}`} />
+                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[200vmax] h-[200vmax] opacity-20 animate-spin-slow [mask-image:radial-gradient(circle,white,transparent_70%)] ${revealedCardId === null ? "bg-[conic-gradient(from_0deg,transparent,rgba(255,255,255,0.3),transparent,rgba(255,255,255,0.3),transparent)]" : (lastFlippedSide === "mafia" ? "bg-[conic-gradient(from_0deg,transparent,var(--color-mafia),transparent,var(--color-mafia),transparent)]" : "bg-[conic-gradient(from_0deg,transparent,var(--color-citizen),transparent,var(--color-citizen),transparent)]")}`} />
                 </div>
                 
                 {/* Semi-Persistent Layer: Center Light Source - Fades out smoothly over a longer period */}
-                <div className={`absolute inset-0 transition-opacity ${revealedCardId !== null ? "duration-1000 opacity-100" : "duration-1000 opacity-0"}`}>
-                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 sm:w-64 sm:h-64 rounded-full blur-3xl opacity-60 animate-breathe transition-colors duration-1000 ${lastFlippedSide === "mafia" ? "bg-mafia" : "bg-citizen"}`} />
+                <div className={`absolute inset-0 transition-opacity ${flippedCardId !== null ? "duration-1000 opacity-100" : "duration-[150ms] opacity-0"}`}>
+                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 sm:w-64 sm:h-64 rounded-full blur-3xl opacity-60 animate-breathe transition-colors duration-1000 ${revealedCardId === null ? "bg-white/40" : (lastFlippedSide === "mafia" ? "bg-mafia" : "bg-citizen")}`} />
                   <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 sm:w-16 sm:h-16 rounded-full blur-md bg-white opacity-20" />
                 </div>
               </div>
@@ -818,7 +826,7 @@ export default function MafiaGame() {
                   <div
                     key={card.id}
                     onClick={() => flipCard(card.id)}
-                    className={`absolute cursor-pointer transition-all ${isDismissing ? "duration-[600ms]" : "duration-1000"} ease-expo preserve-3d ${
+                    className={`absolute cursor-pointer transition-all ${isDismissing ? "duration-[400ms]" : "duration-1000"} ease-expo preserve-3d ${
                       (isFlipped || isDismissing)
                         ? "z-50 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]" 
                         : isThrowing
@@ -835,37 +843,38 @@ export default function MafiaGame() {
                         : `translate(-50%, -50%) translate(0, 0) rotate(0deg) ${isRevealed ? "rotateY(180deg)" : "rotateY(0deg)"} scale(1)`,
                     }}
                   >
-
-                    {/* Front Side */}
-                    <div className={`absolute inset-0 glass ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden [transform:translateZ(1px)] transition-all ${isDismissing ? "duration-[600ms]" : "duration-1000"} ease-expo`}>
-                      <div className="relative z-10 flex flex-col items-center gap-1">
-                        <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums transition-all ${isDismissing ? "duration-[600ms]" : "duration-1000"} ease-expo aspect-square ${isFlipped || isThrowing || isDismissing ? "w-28 h-28 text-5xl sm:w-40 sm:h-40 sm:text-7xl" : "w-8 h-8 text-xs"}`}>
-                          {formatNumber(card.id + 1)}
+                    <div className={`w-full h-full preserve-3d ${isTrembling && flippedCardId === card.id ? "animate-tremble" : ""}`}>
+                      {/* Front Side */}
+                      <div className={`absolute inset-0 glass ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden [transform:translateZ(1px)] transition-all ${isDismissing ? "duration-[400ms]" : "duration-1000"} ease-expo`}>
+                        <div className="relative z-10 flex flex-col items-center gap-1">
+                          <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums transition-all ${isDismissing ? "duration-[400ms]" : "duration-1000"} ease-expo aspect-square ${isFlipped || isThrowing || isDismissing ? "w-28 h-28 text-5xl sm:w-40 sm:h-40 sm:text-7xl" : "w-8 h-8 text-xs"}`}>
+                            {formatNumber(card.id + 1)}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Back Side */}
-                    <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)_translateZ(1px)] backface-hidden p-6 text-center border-4 transition-all ${isDismissing ? "duration-[600ms]" : "duration-1000"} ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
-                      <div className="w-full flex-1 flex flex-col items-center justify-center gap-2 relative z-10">
-                        <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-400">
-                          {card.side === "mafia" ? t("defaultMafia") : t("defaultCitizen")}
+                      {/* Back Side */}
+                      <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)_translateZ(1px)] backface-hidden p-6 text-center border-4 transition-all ${isDismissing ? "duration-[400ms]" : "duration-1000"} ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
+                        <div className="w-full flex-1 flex flex-col items-center justify-center gap-2 relative z-10">
+                          <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-400">
+                            {card.side === "mafia" ? t("defaultMafia") : t("defaultCitizen")}
+                          </div>
+                          <div className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">{card.role}</div>
                         </div>
-                        <div className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">{card.role}</div>
-                      </div>
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          markSeen(card.id);
-                        }}
-                        className="w-full py-4 bg-black text-white rounded-xl text-sm font-bold leading-none flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg relative z-10"
-                      >
-                        <Icon className="h-5 w-5">
-                          <path d="M20 6 9 17l-5-5" />
-                        </Icon>
-                        {t("seen")}
-                      </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markSeen(card.id);
+                          }}
+                          className="w-full py-4 bg-black text-white rounded-xl text-sm font-bold leading-none flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg relative z-10"
+                        >
+                          <Icon className="h-5 w-5">
+                            <path d="M20 6 9 17l-5-5" />
+                          </Icon>
+                          {t("seen")}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );

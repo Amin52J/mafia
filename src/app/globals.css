@@ -111,13 +111,18 @@ body {
   animation: spin-slow 12s linear infinite;
 }
 
+@utility animate-tremble {
+  animation: tremble 0.15s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up,
   .animate-zoom-in,
   .animate-float,
   .animate-spin-slow,
-  .animate-breathe {
+  .animate-breathe,
+  .animate-tremble {
     animation: none !important;
   }
 }
@@ -177,4 +182,12 @@ body {
 @keyframes breathe {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 0.5; }
+}
+
+@keyframes tremble {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-2px, 2px) rotate(1deg); }
+  50% { transform: translate(2px, -2px) rotate(-1deg); }
+  75% { transform: translate(-2px, -2px) rotate(1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
 }
