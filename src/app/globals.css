@@ -1,9 +1,5 @@
 @import "tailwindcss";
 
-html {
-  scrollbar-gutter: stable;
-}
-
 @theme {
   --color-background: #050505;
   --color-foreground: #fafafa;
@@ -103,15 +99,25 @@ body {
   padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
 }
 
-.animate-float {
+@utility animate-float {
   animation: float 3s ease-in-out infinite;
+}
+
+@utility animate-breathe {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+@utility animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up,
   .animate-zoom-in,
-  .animate-float {
+  .animate-float,
+  .animate-spin-slow,
+  .animate-breathe {
     animation: none !important;
   }
 }
@@ -161,4 +167,14 @@ body {
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.5; }
 }

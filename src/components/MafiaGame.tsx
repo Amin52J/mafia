@@ -40,6 +40,7 @@ export default function MafiaGame() {
   const hasShownIOSAudioMessageRef = useRef(false);
   const [isExported, setIsExported] = useState(false);
   const [isAudioInitialized, setIsAudioInitialized] = useState(false);
+  const [lastFlippedSide, setLastFlippedSide] = useState<"citizen" | "mafia" | null>(null);
   
   // Game Controls State
   const [isNight, setIsNight] = useState(false);
@@ -646,6 +647,7 @@ export default function MafiaGame() {
     if (!target || target.isSeen) return;
 
     setFlippedCardId(id);
+    setLastFlippedSide(target.side);
     // Delay the actual rotation (back side reveal)
     setTimeout(() => {
       setRevealedCardId(id);
@@ -684,6 +686,7 @@ export default function MafiaGame() {
     setFlippedCardId(null);
     setRevealedCardId(null);
     setThrowingCardId(null);
+    setLastFlippedSide(null);
     setIsNight(false);
     setIsSpeaking(false);
     playedSongsRef.current.clear();
@@ -744,9 +747,10 @@ export default function MafiaGame() {
     return (
       <div
         dir={language === "fa" ? "rtl" : "ltr"}
-        className={`relative flex flex-col min-h-dvh bg-background text-foreground font-sans max-w-lg mx-auto ${flippedCardId !== null || throwingCardId !== null ? "overflow-hidden" : "overflow-x-hidden"}`}
+        className={`relative flex flex-col min-h-dvh bg-background text-foreground font-sans max-w-lg mx-auto ${isStarted && unseenCardsCount > 0 ? "overflow-hidden" : "overflow-x-hidden"}`}
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_55%)]" />
+        
         <header className="p-4 pt-[calc(1rem+env(safe-area-inset-top))] flex items-center justify-between glass-dark sticky top-0 z-50">
           <button 
             onClick={restart}
@@ -760,7 +764,22 @@ export default function MafiaGame() {
 
         <main className="relative flex-1 p-4 sm:p-6 flex flex-col items-center justify-center">
           {unseenCardsCount > 0 ? (
-            <div className="relative w-full aspect-square max-w-[min(90vw,min(70vh,500px))] mx-auto animate-slide-up perspective-1000">
+            <div className="relative w-full aspect-square max-w-[min(90vw,min(70vh,500px))] mx-auto animate-slide-up perspective-1000 preserve-3d">
+              {/* Light Show Effect - Placed here to be between normal cards (z-10) and active cards (z-40/50) */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200vmax] h-[200vmax] pointer-events-none z-20 overflow-hidden">
+                {/* Transient Layer: Ambient Glow & Rotating Beams - Fades out completely when card is dismissed */}
+                <div className={`absolute inset-0 transition-opacity ${revealedCardId !== null ? "duration-1000 opacity-100" : "duration-500 opacity-0"}`}>
+                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vmax] h-[100vmax] rounded-full blur-[100px] opacity-40 animate-breathe transition-colors duration-1000 ${lastFlippedSide === "mafia" ? "bg-mafia" : "bg-citizen"}`} />
+                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[200vmax] h-[200vmax] opacity-20 animate-spin-slow [mask-image:radial-gradient(circle,white,transparent_70%)] ${lastFlippedSide === "mafia" ? "bg-[conic-gradient(from_0deg,transparent,var(--color-mafia),transparent,var(--color-mafia),transparent)]" : "bg-[conic-gradient(from_0deg,transparent,var(--color-citizen),transparent,var(--color-citizen),transparent)]"}`} />
+                </div>
+                
+                {/* Semi-Persistent Layer: Center Light Source - Fades out smoothly over a longer period */}
+                <div className={`absolute inset-0 transition-opacity ${revealedCardId !== null ? "duration-1000 opacity-100" : "duration-1000 opacity-0"}`}>
+                  <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 sm:w-64 sm:h-64 rounded-full blur-3xl opacity-60 animate-breathe transition-colors duration-1000 ${lastFlippedSide === "mafia" ? "bg-mafia" : "bg-citizen"}`} />
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 sm:w-16 sm:h-16 rounded-full blur-md bg-white opacity-20" />
+                </div>
+              </div>
+
               {cards.map((card, index) => {
                 const angle = (index * 2 * Math.PI) / cards.length - Math.PI / 2;
                 const x = Math.cos(angle) * cardDimensions.r;
@@ -807,6 +826,7 @@ export default function MafiaGame() {
                         : `translate(-50%, -50%) ${isRevealed ? "rotateY(180deg)" : "rotateY(0deg)"}`,
                     }}
                   >
+
                     {/* Front Side */}
                     <div className={`absolute inset-0 glass ${isFlipped || isThrowing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden [transform:translateZ(1px)] transition-all duration-1000 ease-expo`}>
                       <div className="relative z-10 flex flex-col items-center gap-1">
