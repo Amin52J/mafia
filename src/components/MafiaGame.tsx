@@ -27,6 +27,7 @@ export default function MafiaGame() {
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedCardId, setFlippedCardId] = useState<number | null>(null);
   const [revealedCardId, setRevealedCardId] = useState<number | null>(null);
+  const [dismissingCardId, setDismissingCardId] = useState<number | null>(null);
   const [throwingCardId, setThrowingCardId] = useState<number | null>(null);
   const [throwConfig, setThrowConfig] = useState({ x: 0, y: 0, rotate: 0 });
   const [scenarioName, setScenarioName] = useState("");
@@ -656,28 +657,34 @@ export default function MafiaGame() {
   };
 
   const markSeen = (id: number) => {
-    if (throwingCardId !== null) return;
+    if (throwingCardId !== null || dismissingCardId !== null) return;
 
-    const angle = Math.random() * 2 * Math.PI;
-    const distance = 150; // percentage to be well off-screen
-    const x = Math.cos(angle) * distance;
-    const y = Math.sin(angle) * distance;
-    const rotate = (Math.random() - 0.5) * 720; // 2 full random rotations
-
-    setThrowConfig({ x, y, rotate });
-    setThrowingCardId(id);
-    
-    // Clear flipped and revealed state immediately so other cards can be clicked
-    setFlippedCardId(null);
+    setDismissingCardId(id);
     setRevealedCardId(null);
 
-    // Wait for the throwing animation (1000ms) before final cleanup
+    // Wait for light show fade-out before throwing
     setTimeout(() => {
-      setCards(prev =>
-        prev.map(c => (c.id === id ? { ...c, isSeen: true, isFlipped: false } : c))
-      );
-      setThrowingCardId(null);
-    }, 1000);
+      const angle = Math.random() * 2 * Math.PI;
+      const distance = 150; // percentage to be well off-screen
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance;
+      const rotate = (Math.random() - 0.5) * 720; // 2 full random rotations
+
+      setThrowConfig({ x, y, rotate });
+      setDismissingCardId(null);
+      setThrowingCardId(id);
+      
+      // Clear flipped state only when throwing starts
+      setFlippedCardId(null);
+
+      // Wait for the throwing animation (1000ms) before final cleanup
+      setTimeout(() => {
+        setCards(prev =>
+          prev.map(c => (c.id === id ? { ...c, isSeen: true, isFlipped: false } : c))
+        );
+        setThrowingCardId(null);
+      }, 1000);
+    }, 600);
   };
 
   const restart = () => {
@@ -685,6 +692,7 @@ export default function MafiaGame() {
     setCards([]);
     setFlippedCardId(null);
     setRevealedCardId(null);
+    setDismissingCardId(null);
     setThrowingCardId(null);
     setLastFlippedSide(null);
     setIsNight(false);
@@ -786,6 +794,7 @@ export default function MafiaGame() {
                 const y = Math.sin(angle) * cardDimensions.r;
                 const isFlipped = flippedCardId === card.id;
                 const isRevealed = revealedCardId === card.id;
+                const isDismissing = dismissingCardId === card.id;
                 const isThrowing = throwingCardId === card.id;
 
                 if (card.isSeen) {
@@ -809,35 +818,35 @@ export default function MafiaGame() {
                   <div
                     key={card.id}
                     onClick={() => flipCard(card.id)}
-                    className={`absolute cursor-pointer transition-all duration-1000 ease-expo preserve-3d ${
-                      isFlipped
+                    className={`absolute cursor-pointer transition-all ${isDismissing ? "duration-[600ms]" : "duration-1000"} ease-expo preserve-3d ${
+                      (isFlipped || isDismissing)
                         ? "z-50 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]" 
                         : isThrowing
                         ? "z-40 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]"
                         : `z-10 shadow-2xl rounded-lg sm:rounded-xl ${flippedCardId !== null ? "" : "hover:scale-110"}`
                     }`}
                     style={{
-                      width: (isFlipped || isThrowing) ? "min(80vw, 320px)" : `${cardDimensions.w}%`,
-                      height: (isFlipped || isThrowing) ? "min(106vw, 426px)" : `${cardDimensions.h}%`,
-                      left: (isFlipped || isThrowing) ? "50%" : `${50 + x}%`,
-                      top: (isFlipped || isThrowing) ? "50%" : `${50 + y}%`,
+                      width: (isFlipped || isThrowing || isDismissing) ? "min(80vw, 320px)" : `${cardDimensions.w}%`,
+                      height: (isFlipped || isThrowing || isDismissing) ? "min(106vw, 426px)" : `${cardDimensions.h}%`,
+                      left: (isFlipped || isThrowing || isDismissing) ? "50%" : `${50 + x}%`,
+                      top: (isFlipped || isThrowing || isDismissing) ? "50%" : `${50 + y}%`,
                       transform: isThrowing
-                        ? `translate(-50%, -50%) translate(${throwConfig.x}vw, ${throwConfig.y}vh) rotate(${throwConfig.rotate}deg) rotateY(180deg) scale(0.5)`
-                        : `translate(-50%, -50%) ${isRevealed ? "rotateY(180deg)" : "rotateY(0deg)"}`,
+                        ? `translate(-50%, -50%) translate(${throwConfig.x}vw, ${throwConfig.y}vh) rotate(${throwConfig.rotate}deg) rotateY(0deg) scale(0.5)`
+                        : `translate(-50%, -50%) translate(0, 0) rotate(0deg) ${isRevealed ? "rotateY(180deg)" : "rotateY(0deg)"} scale(1)`,
                     }}
                   >
 
                     {/* Front Side */}
-                    <div className={`absolute inset-0 glass ${isFlipped || isThrowing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden [transform:translateZ(1px)] transition-all duration-1000 ease-expo`}>
+                    <div className={`absolute inset-0 glass ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden [transform:translateZ(1px)] transition-all ${isDismissing ? "duration-[600ms]" : "duration-1000"} ease-expo`}>
                       <div className="relative z-10 flex flex-col items-center gap-1">
-                        <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums transition-all duration-1000 ease-expo aspect-square ${isFlipped || isThrowing ? "w-28 h-28 text-5xl sm:w-40 sm:h-40 sm:text-7xl" : "w-8 h-8 text-xs"}`}>
+                        <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums transition-all ${isDismissing ? "duration-[600ms]" : "duration-1000"} ease-expo aspect-square ${isFlipped || isThrowing || isDismissing ? "w-28 h-28 text-5xl sm:w-40 sm:h-40 sm:text-7xl" : "w-8 h-8 text-xs"}`}>
                           {formatNumber(card.id + 1)}
                         </div>
                       </div>
                     </div>
 
                     {/* Back Side */}
-                    <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)_translateZ(1px)] backface-hidden p-6 text-center border-4 transition-all duration-1000 ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
+                    <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)_translateZ(1px)] backface-hidden p-6 text-center border-4 transition-all ${isDismissing ? "duration-[600ms]" : "duration-1000"} ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
                       <div className="w-full flex-1 flex flex-col items-center justify-center gap-2 relative z-10">
                         <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-400">
                           {card.side === "mafia" ? t("defaultMafia") : t("defaultCitizen")}
