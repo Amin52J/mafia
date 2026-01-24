@@ -684,13 +684,13 @@ export default function MafiaGame() {
       // Clear flipped state only when throwing starts
       setFlippedCardId(null);
 
-      // Wait for the throwing animation (1000ms) before final cleanup
+      // Wait for the throwing animation (1500ms) before final cleanup
       setTimeout(() => {
         setCards(prev =>
           prev.map(c => (c.id === id ? { ...c, isSeen: true, isFlipped: false } : c))
         );
         setThrowingCardId(null);
-      }, 1000);
+      }, 1500);
     }, 600);
   };
 
@@ -826,12 +826,12 @@ export default function MafiaGame() {
                   <div
                     key={card.id}
                     onClick={() => flipCard(card.id)}
-                    className={`absolute cursor-pointer transition-all ${isDismissing ? "duration-600" : "duration-1000"} ease-expo preserve-3d ${
+                    className={`absolute cursor-pointer transition-all ${isDismissing ? "duration-600" : isThrowing ? "duration-[1500ms]" : "duration-1000"} ease-expo preserve-3d ${
                       (isFlipped || isDismissing)
                         ? "z-50 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]" 
                         : isThrowing
                         ? "z-40 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]"
-                        : `z-10 shadow-2xl rounded-lg sm:rounded-xl ${flippedCardId !== null ? "opacity-10 scale-90 blur-sm pointer-events-none" : "hover:scale-110"}`
+                        : `z-10 shadow-2xl rounded-lg sm:rounded-xl ${flippedCardId !== null ? "opacity-0 scale-90 blur-sm pointer-events-none" : "hover:scale-110"}`
                     }`}
                     style={{
                       width: (isFlipped || isThrowing || isDismissing) ? "min(60vw, 240px)" : `${cardDimensions.w}%`,
@@ -845,9 +845,9 @@ export default function MafiaGame() {
                   >
                     <div className={`w-full h-full preserve-3d ${isTrembling && flippedCardId === card.id ? "animate-tremble" : ""}`}>
                       {/* Front Side */}
-                      <div className={`absolute inset-0 glass ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden [transform:translateZ(2px)] transition-all ${isDismissing ? "duration-600" : "duration-1000"} ease-expo`}>
+                      <div className={`absolute inset-0 glass ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden [transform:translateZ(2px)] transition-all ${isDismissing ? "duration-600" : isThrowing ? "duration-[1500ms]" : "duration-1000"} ease-expo`}>
                         <div className="relative z-10 flex flex-col items-center gap-1">
-                          <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums leading-none transition-all ${isDismissing ? "duration-600" : "duration-1000"} ease-expo aspect-square ${isFlipped || isThrowing || isDismissing ? "w-28 h-28 text-5xl sm:w-40 sm:h-40 sm:text-7xl" : "w-8 h-8 text-xs"}`}>
+                          <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums leading-none transition-all ${isDismissing ? "duration-600" : isThrowing ? "duration-[1500ms]" : "duration-1000"} ease-expo aspect-square ${isFlipped || isThrowing || isDismissing ? "w-28 h-28 text-5xl sm:w-40 sm:h-40 sm:text-7xl" : "w-8 h-8 text-xs"}`}>
                             <span className="relative top-[0.05em]">
                               {formatNumber(card.id + 1)}
                             </span>
@@ -856,7 +856,7 @@ export default function MafiaGame() {
                       </div>
 
                       {/* Back Side */}
-                      <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)_translateZ(2px)] backface-hidden p-6 text-center border-4 transition-all ${isDismissing ? "duration-600" : "duration-1000"} ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
+                      <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)_translateZ(2px)] backface-hidden p-6 text-center border-4 transition-all ${isDismissing ? "duration-600" : isThrowing ? "duration-[1500ms]" : "duration-1000"} ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
                         <div className="w-full flex-1 flex flex-col items-center justify-center gap-2 relative z-10">
                           <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-400">
                             {card.side === "mafia" ? t("defaultMafia") : t("defaultCitizen")}
