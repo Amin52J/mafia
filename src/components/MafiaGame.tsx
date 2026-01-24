@@ -669,7 +669,7 @@ export default function MafiaGame() {
     setRevealedCardId(null);
     setIsTrembling(false);
 
-    // Wait for light show fade-out before throwing
+    // Wait for flip back animation before throwing
     setTimeout(() => {
       const angle = Math.random() * 2 * Math.PI;
       const distance = 150; // percentage to be well off-screen
@@ -691,7 +691,7 @@ export default function MafiaGame() {
         );
         setThrowingCardId(null);
       }, 1000);
-    }, 400);
+    }, 600);
   };
 
   const restart = () => {
@@ -780,7 +780,7 @@ export default function MafiaGame() {
 
         <main className="relative flex-1 p-4 sm:p-6 flex flex-col items-center justify-center">
           {unseenCardsCount > 0 ? (
-            <div className="relative w-full aspect-square max-w-[min(90vw,min(70vh,500px))] mx-auto animate-slide-up perspective-1000 preserve-3d">
+            <div className="relative w-full aspect-square max-w-[min(90vw,min(70vh,500px))] mx-auto animate-slide-up perspective-1000 preserve-3d [transform:translateZ(0)]">
               {/* Light Show Effect - Placed here to be between normal cards (z-10) and active cards (z-40/50) */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200vmax] h-[200vmax] pointer-events-none z-20 overflow-hidden">
                 {/* Transient Layer: Ambient Glow & Rotating Beams - Fades out completely when card is dismissed */}
@@ -826,35 +826,37 @@ export default function MafiaGame() {
                   <div
                     key={card.id}
                     onClick={() => flipCard(card.id)}
-                    className={`absolute cursor-pointer transition-all ${isDismissing ? "duration-[400ms]" : "duration-1000"} ease-expo preserve-3d ${
+                    className={`absolute cursor-pointer transition-all ${isDismissing ? "duration-600" : "duration-1000"} ease-expo preserve-3d ${
                       (isFlipped || isDismissing)
                         ? "z-50 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]" 
                         : isThrowing
                         ? "z-40 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]"
-                        : `z-10 shadow-2xl rounded-lg sm:rounded-xl ${flippedCardId !== null ? "" : "hover:scale-110"}`
+                        : `z-10 shadow-2xl rounded-lg sm:rounded-xl ${flippedCardId !== null ? "opacity-10 scale-90 blur-sm pointer-events-none" : "hover:scale-110"}`
                     }`}
                     style={{
-                      width: (isFlipped || isThrowing || isDismissing) ? "min(80vw, 320px)" : `${cardDimensions.w}%`,
-                      height: (isFlipped || isThrowing || isDismissing) ? "min(106vw, 426px)" : `${cardDimensions.h}%`,
+                      width: (isFlipped || isThrowing || isDismissing) ? "min(60vw, 240px)" : `${cardDimensions.w}%`,
+                      height: (isFlipped || isThrowing || isDismissing) ? "min(80vw, 320px)" : `${cardDimensions.h}%`,
                       left: (isFlipped || isThrowing || isDismissing) ? "50%" : `${50 + x}%`,
                       top: (isFlipped || isThrowing || isDismissing) ? "50%" : `${50 + y}%`,
                       transform: isThrowing
-                        ? `translate(-50%, -50%) translate(${throwConfig.x}vw, ${throwConfig.y}vh) rotate(${throwConfig.rotate}deg) rotateY(0deg) scale(0.5)`
-                        : `translate(-50%, -50%) translate(0, 0) rotate(0deg) ${isRevealed ? "rotateY(180deg)" : "rotateY(0deg)"} scale(1)`,
+                        ? `translate(-50%, -50%) translateZ(100px) translate(${throwConfig.x}vw, ${throwConfig.y}vh) rotate(${throwConfig.rotate}deg) rotateY(0deg) scale(0.5)`
+                        : `translate(-50%, -50%) ${isFlipped || isDismissing ? "translateZ(150px)" : "translateZ(0px)"} rotate(0deg) ${isRevealed ? "rotateY(180deg)" : "rotateY(0deg)"} scale(1)`,
                     }}
                   >
                     <div className={`w-full h-full preserve-3d ${isTrembling && flippedCardId === card.id ? "animate-tremble" : ""}`}>
                       {/* Front Side */}
-                      <div className={`absolute inset-0 glass ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden [transform:translateZ(1px)] transition-all ${isDismissing ? "duration-[400ms]" : "duration-1000"} ease-expo`}>
+                      <div className={`absolute inset-0 glass ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} border border-white/10 flex flex-col items-center justify-center backface-hidden [transform:translateZ(2px)] transition-all ${isDismissing ? "duration-600" : "duration-1000"} ease-expo`}>
                         <div className="relative z-10 flex flex-col items-center gap-1">
-                          <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums transition-all ${isDismissing ? "duration-[400ms]" : "duration-1000"} ease-expo aspect-square ${isFlipped || isThrowing || isDismissing ? "w-28 h-28 text-5xl sm:w-40 sm:h-40 sm:text-7xl" : "w-8 h-8 text-xs"}`}>
-                            {formatNumber(card.id + 1)}
+                          <div className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-black text-zinc-500 tabular-nums leading-none transition-all ${isDismissing ? "duration-600" : "duration-1000"} ease-expo aspect-square ${isFlipped || isThrowing || isDismissing ? "w-28 h-28 text-5xl sm:w-40 sm:h-40 sm:text-7xl" : "w-8 h-8 text-xs"}`}>
+                            <span className="relative top-[0.05em]">
+                              {formatNumber(card.id + 1)}
+                            </span>
                           </div>
                         </div>
                       </div>
 
                       {/* Back Side */}
-                      <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)_translateZ(1px)] backface-hidden p-6 text-center border-4 transition-all ${isDismissing ? "duration-[400ms]" : "duration-1000"} ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
+                      <div className={`absolute inset-0 bg-zinc-100 text-black ${isFlipped || isThrowing || isDismissing ? "rounded-3xl sm:rounded-[2.5rem]" : "rounded-lg sm:rounded-xl"} flex flex-col items-center justify-between [transform:rotateY(180deg)_translateZ(2px)] backface-hidden p-6 text-center border-4 transition-all ${isDismissing ? "duration-600" : "duration-1000"} ease-expo ${card.side === "mafia" ? "border-mafia" : "border-citizen"}`}>
                         <div className="w-full flex-1 flex flex-col items-center justify-center gap-2 relative z-10">
                           <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-400">
                             {card.side === "mafia" ? t("defaultMafia") : t("defaultCitizen")}
