@@ -43,6 +43,8 @@ export default function MafiaGame() {
   const [isExported, setIsExported] = useState(false);
   const [isAudioInitialized, setIsAudioInitialized] = useState(false);
   const [lastFlippedSide, setLastFlippedSide] = useState<"citizen" | "mafia" | null>(null);
+  const [isDisplayHidden, setIsDisplayHidden] = useState(false);
+  const displayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Game Controls State
   const [isNight, setIsNight] = useState(false);
@@ -71,6 +73,12 @@ export default function MafiaGame() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const isAudioUnlockedRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (displayTimeoutRef.current) clearTimeout(displayTimeoutRef.current);
+    };
+  }, []);
 
   const playSound = useCallback(async (audio: HTMLAudioElement | null) => {
     if (!audio) return;
@@ -635,6 +643,8 @@ export default function MafiaGame() {
 
     setCards(shuffled);
     setIsStarted(true);
+    if (displayTimeoutRef.current) clearTimeout(displayTimeoutRef.current);
+    setIsDisplayHidden(false);
     setFlippedCardId(null);
     playedSongsRef.current.clear();
 
@@ -651,6 +661,9 @@ export default function MafiaGame() {
     setFlippedCardId(id);
     setLastFlippedSide(target.side);
     
+    if (displayTimeoutRef.current) clearTimeout(displayTimeoutRef.current);
+    displayTimeoutRef.current = setTimeout(() => setIsDisplayHidden(true), 400);
+
     setIsTrembling(true);
     // Card grows for 1800ms.
     setTimeout(() => {
@@ -681,6 +694,8 @@ export default function MafiaGame() {
       setThrowingCardId(id);
       
       // Clear flipped state a bit later during throwing
+      if (displayTimeoutRef.current) clearTimeout(displayTimeoutRef.current);
+      setIsDisplayHidden(false);
       setTimeout(() => setFlippedCardId(null), 200);
 
       // Wait for the throwing animation (400ms) before final cleanup
@@ -696,6 +711,8 @@ export default function MafiaGame() {
   const restart = () => {
     setIsStarted(false);
     setCards([]);
+    if (displayTimeoutRef.current) clearTimeout(displayTimeoutRef.current);
+    setIsDisplayHidden(false);
     setFlippedCardId(null);
     setRevealedCardId(null);
     setIsTrembling(false);
@@ -832,7 +849,7 @@ export default function MafiaGame() {
                         ? "z-50 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]" 
                         : isThrowing
                         ? "z-40 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.6)] rounded-3xl sm:rounded-[2.5rem]"
-                        : `z-10 shadow-2xl rounded-lg sm:rounded-xl ${flippedCardId !== null ? "opacity-0 invisible scale-90 pointer-events-none" : "hover:scale-110"}`
+                        : `z-10 shadow-2xl rounded-lg sm:rounded-xl ${flippedCardId !== null ? `opacity-0 scale-90 pointer-events-none ${isDisplayHidden ? "hidden" : "invisible"}` : "hover:scale-110"}`
                     }`}
                     style={{
                       width: (isFlipped || isThrowing || isDismissing) ? "min(60vw, 240px)" : `${cardDimensions.w}%`,
