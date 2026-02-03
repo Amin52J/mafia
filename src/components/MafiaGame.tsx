@@ -70,12 +70,7 @@ export default function MafiaGame() {
     }
     return 10;
   });
-  const [godsNote, setGodsNote] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("godsNote") || "";
-    }
-    return "";
-  });
+  const [godsNote, setGodsNote] = useState("");
   const [countdown, setCountdown] = useState(speechDuration);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isChallenging, setIsChallenging] = useState(false);
@@ -317,9 +312,6 @@ export default function MafiaGame() {
     localStorage.setItem("extraTime", extraTime.toString());
   }, [extraTime]);
 
-  useEffect(() => {
-    localStorage.setItem("godsNote", godsNote);
-  }, [godsNote]);
 
   useEffect(() => {
     if (!isNight) {
@@ -701,6 +693,7 @@ export default function MafiaGame() {
     if (displayTimeoutRef.current) clearTimeout(displayTimeoutRef.current);
     setIsDisplayHidden(false);
     setFlippedCardId(null);
+    setGodsNote("");
     playedSongsRef.current.clear();
 
     // Unlock audio and resume context for iOS Safari PWA
@@ -776,6 +769,7 @@ export default function MafiaGame() {
     setLastFlippedSide(null);
     setIsNight(false);
     setIsSpeaking(false);
+    setGodsNote("");
     playedSongsRef.current.clear();
   };
 
