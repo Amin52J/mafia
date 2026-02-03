@@ -35,6 +35,7 @@ export default function MafiaGame() {
   const [scenarioNotes, setScenarioNotes] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [showManageScenarios, setShowManageScenarios] = useState(false);
+  const [showRestartConfirmation, setShowRestartConfirmation] = useState(false);
   const [renamingScenarioId, setRenamingScenarioId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [statusMessage, setStatusMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -55,6 +56,13 @@ export default function MafiaGame() {
     }
     return 40;
   });
+  const [challengeTime, setChallengeTime] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("challengeTime");
+      return saved ? parseInt(saved, 10) : 30;
+    }
+    return 30;
+  });
   const [extraTime, setExtraTime] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("extraTime");
@@ -62,8 +70,15 @@ export default function MafiaGame() {
     }
     return 10;
   });
+  const [godsNote, setGodsNote] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("godsNote") || "";
+    }
+    return "";
+  });
   const [countdown, setCountdown] = useState(speechDuration);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isChallenging, setIsChallenging] = useState(false);
   
   const playedSongsRef = useRef<Set<string>>(new Set());
   const nightAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -243,6 +258,7 @@ export default function MafiaGame() {
   const saveInputRef = useRef<HTMLInputElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
+  const godsNoteRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (notesRef.current) {
@@ -250,6 +266,13 @@ export default function MafiaGame() {
       notesRef.current.style.height = `${notesRef.current.scrollHeight}px`;
     }
   }, [scenarioNotes]);
+
+  useEffect(() => {
+    if (godsNoteRef.current) {
+      godsNoteRef.current.style.height = "auto";
+      godsNoteRef.current.style.height = `${godsNoteRef.current.scrollHeight}px`;
+    }
+  }, [godsNote]);
 
   useEffect(() => {
     if (showSaveInput) {
@@ -270,7 +293,7 @@ export default function MafiaGame() {
   }, [renamingScenarioId]);
 
   useEffect(() => {
-    if (showSaveInput || showManageScenarios || flippedCardId !== null || throwingCardId !== null) {
+    if (showSaveInput || showRestartConfirmation || showManageScenarios || flippedCardId !== null || throwingCardId !== null) {
       // Prevent background scroll
       document.body.style.overflow = "hidden";
     } else {
@@ -280,15 +303,23 @@ export default function MafiaGame() {
     return () => {
       document.body.style.overflow = "";
     };
-  }, [showSaveInput, showManageScenarios, flippedCardId, throwingCardId]);
+  }, [showSaveInput, showRestartConfirmation, showManageScenarios, flippedCardId, throwingCardId]);
 
   useEffect(() => {
     localStorage.setItem("speechDuration", speechDuration.toString());
   }, [speechDuration]);
 
   useEffect(() => {
+    localStorage.setItem("challengeTime", challengeTime.toString());
+  }, [challengeTime]);
+
+  useEffect(() => {
     localStorage.setItem("extraTime", extraTime.toString());
   }, [extraTime]);
+
+  useEffect(() => {
+    localStorage.setItem("godsNote", godsNote);
+  }, [godsNote]);
 
   useEffect(() => {
     if (!isNight) {
@@ -300,14 +331,16 @@ export default function MafiaGame() {
   }, [isNight]);
 
   useEffect(() => {
-    if (isSpeaking) {
-      setCountdown(speechDuration);
+    if (isSpeaking || isChallenging) {
+      const initialTime = isSpeaking ? speechDuration : challengeTime;
+      setCountdown(initialTime);
 
       timerRef.current = setInterval(() => {
         setCountdown((prev) => {
           if (prev <= -extraTime) return prev;
           const next = prev - 1;
-          if (next === extraTime) {
+          
+          if (isSpeaking && next === extraTime) {
             if (bellAudioRef.current) bellAudioRef.current.currentTime = 0;
             void playSound(bellAudioRef.current);
           } else if (next === 0) {
@@ -331,7 +364,7 @@ export default function MafiaGame() {
       if (timerRef.current) clearInterval(timerRef.current);
       bellRepeatAudioRef.current?.pause();
     };
-  }, [isSpeaking, speechDuration, extraTime, playSound]);
+  }, [isSpeaking, isChallenging, speechDuration, challengeTime, extraTime, playSound]);
 
   const delocalizeDigits = (text: string) => {
     const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
@@ -347,10 +380,22 @@ export default function MafiaGame() {
     const num = parseInt(normalized.replace(/\D/g, ""), 10);
     if (!isNaN(num)) {
       setSpeechDuration(num);
-      if (!isSpeaking) setCountdown(num);
+      if (!isSpeaking && !isChallenging) setCountdown(num);
     } else if (normalized === "") {
       setSpeechDuration(0);
-      if (!isSpeaking) setCountdown(0);
+      if (!isSpeaking && !isChallenging) setCountdown(0);
+    }
+  };
+
+  const handleChallengeTimeChange = (val: string) => {
+    const normalized = delocalizeDigits(val);
+    const num = parseInt(normalized.replace(/\D/g, ""), 10);
+    if (!isNaN(num)) {
+      setChallengeTime(num);
+      if (!isSpeaking && !isChallenging) setCountdown(num);
+    } else if (normalized === "") {
+      setChallengeTime(0);
+      if (!isSpeaking && !isChallenging) setCountdown(0);
     }
   };
 
@@ -380,7 +425,17 @@ export default function MafiaGame() {
   const toggleSpeaking = async () => {
     triggerIOSAudioHelp();
     const nextSpeaking = !isSpeaking;
+    if (nextSpeaking) setIsChallenging(false);
     setIsSpeaking(nextSpeaking);
+    // Pre-unlock sounds on click
+    await handleAudioUnlock();
+  };
+
+  const toggleChallenging = async () => {
+    triggerIOSAudioHelp();
+    const nextChallenging = !isChallenging;
+    if (nextChallenging) setIsSpeaking(false);
+    setIsChallenging(nextChallenging);
     // Pre-unlock sounds on click
     await handleAudioUnlock();
   };
@@ -785,7 +840,7 @@ export default function MafiaGame() {
         
         <header className="p-4 pt-[calc(1rem+env(safe-area-inset-top))] flex items-center justify-between glass-dark sticky top-0 z-50">
           <button 
-            onClick={restart}
+            onClick={() => setShowRestartConfirmation(true)}
             className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
           >
             {backArrow} {t("reset")}
@@ -907,9 +962,33 @@ export default function MafiaGame() {
               <div className="w-full space-y-4 mb-8">
                 <div className="grid grid-cols-2 gap-4">
                   <button
+                    onClick={toggleSpeaking}
+                    className={`py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 border ${
+                      isSpeaking ? "bg-red-500 text-white border-transparent" : "bg-zinc-800 text-white border-white/10"
+                    }`}
+                  >
+                    {language === "en" 
+                      ? (isSpeaking ? t("stop").toUpperCase() : t("speak").toUpperCase())
+                      : (isSpeaking ? t("stop") : t("speak"))
+                    }
+                  </button>
+
+                  <button
+                    onClick={toggleChallenging}
+                    className={`py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 border ${
+                      isChallenging ? "bg-red-500 text-white border-transparent" : "bg-zinc-800 text-white border-white/10"
+                    }`}
+                  >
+                    {language === "en" 
+                      ? (isChallenging ? t("stop").toUpperCase() : t("challenge").toUpperCase())
+                      : (isChallenging ? t("stop") : t("challenge"))
+                    }
+                  </button>
+
+                  <button
                     onClick={toggleNight}
-                    className={`py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
-                      isNight ? "bg-white text-black" : "bg-zinc-800 text-white border border-white/10"
+                    className={`col-span-2 py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 border ${
+                      isNight ? "bg-white text-black border-transparent" : "bg-zinc-800 text-white border-white/10"
                     }`}
                   >
                     {isNight ? (
@@ -923,18 +1002,6 @@ export default function MafiaGame() {
                         {language === "en" ? t("night").toUpperCase() : t("night")}
                       </>
                     )}
-                  </button>
-
-                  <button
-                    onClick={toggleSpeaking}
-                    className={`py-4 rounded-2xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
-                      isSpeaking ? "bg-red-500 text-white" : "bg-zinc-800 text-white border border-white/10"
-                    }`}
-                  >
-                    {language === "en" 
-                      ? (isSpeaking ? t("stop").toUpperCase() : t("speak").toUpperCase())
-                      : (isSpeaking ? t("stop") : t("speak"))
-                    }
                   </button>
                 </div>
 
@@ -974,6 +1041,32 @@ export default function MafiaGame() {
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block text-center">
+                        {language === "en" ? t("challengeTime").toUpperCase() : t("challengeTime")}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={formatNumber(challengeTime)}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => handleChallengeTimeChange(e.target.value)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-center text-white font-bold focus:outline-none focus:ring-2 focus:ring-white/20 transition-all tabular-nums"
+                        />
+                        {language === "en" && (
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-500 uppercase">
+                            s
+                          </span>
+                        )}
+                        {language === "fa" && (
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-500">
+                            ثانیه
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 col-span-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block text-center">
                         {language === "en" ? t("extraTime").toUpperCase() : t("extraTime")}
                       </label>
                       <div className="relative">
@@ -1012,8 +1105,24 @@ export default function MafiaGame() {
                 </div>
               )}
 
+              <div className="w-full mb-8 glass rounded-3xl border border-white/10 p-6">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-3 text-center">
+                  {t("godsNote")}
+                </div>
+                <textarea
+                  ref={godsNoteRef}
+                  value={godsNote}
+                  onChange={(e) => setGodsNote(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === " ") e.stopPropagation();
+                  }}
+                  className="w-full bg-transparent text-sm font-medium text-zinc-200 leading-relaxed outline-none resize-none overflow-hidden placeholder:text-zinc-600"
+                  placeholder={t("godsNote")}
+                />
+              </div>
+
               <button
-                onClick={restart}
+                onClick={() => setShowRestartConfirmation(true)}
                 className="w-full py-4 bg-white text-black rounded-2xl font-black text-lg leading-none inline-flex items-center justify-center active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
               >
                 {t("restart")}
@@ -1034,6 +1143,61 @@ export default function MafiaGame() {
             statusMessage.type === "success" ? "text-emerald-400" : "text-red-400"
           }`}>
             {statusMessage.text}
+          </div>
+        </div>
+      )}
+
+      {showRestartConfirmation && (
+        <div className="fixed inset-0 z-[100]">
+          <button
+            type="button"
+            aria-label={t("close")}
+            onClick={() => setShowRestartConfirmation(false)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          />
+          <div className="absolute inset-x-0 bottom-0 safe-pb px-6 pb-6">
+            <div className="glass rounded-3xl border border-white/10 p-5 shadow-2xl animate-slide-up">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-black tracking-tight">{t("restart")}</div>
+                <button
+                  type="button"
+                  aria-label={t("close")}
+                  onClick={() => setShowRestartConfirmation(false)}
+                  className="h-10 w-10 rounded-2xl border border-white/10 bg-white/5 text-sm font-black text-zinc-300 hover:bg-white/10 active:scale-95 transition-all inline-flex items-center justify-center"
+                >
+                  <Icon className="h-5 w-5">
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </Icon>
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-4">
+                <p className="text-sm font-medium text-zinc-300 leading-relaxed text-center">
+                  {t("confirmFinishGame")}
+                </p>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowRestartConfirmation(false)}
+                    className="flex-1 py-4 bg-transparent border border-white/10 rounded-2xl text-sm font-bold leading-none text-zinc-400 hover:text-white transition-all active:scale-95 inline-flex items-center justify-center"
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      restart();
+                      setShowRestartConfirmation(false);
+                    }}
+                    className="flex-1 py-4 bg-white text-black rounded-2xl text-sm font-black leading-none active:scale-95 transition-all shadow-xl inline-flex items-center justify-center"
+                  >
+                    {t("confirm")}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
