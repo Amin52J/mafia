@@ -188,21 +188,47 @@ export default function MafiaGame() {
           }
         });
 
-        const a = new Audio("/bell-repeat.mp3");
-        a.loop = true;
-        a.preload = "auto";
-        allAudiosRef.current.add(a);
+        // Recreate repeating bell
+        const br = new Audio("/bell-repeat.mp3");
+        br.loop = true;
+        br.preload = "auto";
+        allAudiosRef.current.add(br);
         
-        const recover = () => {
+        const recoverBR = () => {
           if (!bellRepeatDesiredRef.current) return;
-          void a.load();
-          void a.play().catch(() => {});
+          void br.load();
+          void br.play().catch(() => {});
         };
-        a.addEventListener("stalled", recover);
-        a.addEventListener("error", recover);
-        
-        bellRepeatAudioRef.current = a;
+        br.addEventListener("stalled", recoverBR);
+        br.addEventListener("error", recoverBR);
+        bellRepeatAudioRef.current = br;
+
+        // Recreate single bell
+        const b = new Audio("/bell.mp3");
+        b.preload = "auto";
+        allAudiosRef.current.add(b);
+        bellAudioRef.current = b;
+
+        // Recreate night audio if not already playing or if we are about to start night
+        if (!isNight) {
+          const n = new Audio();
+          n.preload = "auto";
+          n.onended = () => {
+            if (isNight) playRandomNightSong();
+          };
+          allAudiosRef.current.add(n);
+          nightAudioRef.current = n;
+        }
       }
+
+      // Cleanup old unreferenced audios from the tracking set to prevent leaks
+      allAudiosRef.current.forEach(a => {
+        if (a !== nightAudioRef.current && a !== bellAudioRef.current && a !== bellRepeatAudioRef.current && a !== silentAudioRef.current) {
+          if (a.paused) {
+            allAudiosRef.current.delete(a);
+          }
+        }
+      });
 
       const audios = [
         nightAudioRef.current,
@@ -262,7 +288,7 @@ export default function MafiaGame() {
     } finally {
       isUnlockingRef.current = false;
     }
-  }, [isNight, playSound]);
+  }, [isNight, playSound, playRandomNightSong]);
 
   const triggerIOSAudioHelp = useCallback(() => {
     const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as Window & { MSStream?: unknown }).MSStream;
