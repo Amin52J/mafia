@@ -83,6 +83,9 @@ export default function MafiaGame() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   // Tracks whether the repeating bell is expected to be playing
   const bellRepeatDesiredRef = useRef(false);
+  // Track all created audio elements to ensure we can stop them all (iOS multi-element bug)
+  const allAudiosRef = useRef<Set<HTMLAudioElement>>(new Set());
+  const isUnlockingRef = useRef(false);
 
   const isAudioUnlockedRef = useRef(false);
 
@@ -94,6 +97,9 @@ export default function MafiaGame() {
 
   const playSound = useCallback(async (audio: HTMLAudioElement | null) => {
     if (!audio) return;
+    if (audio.src) {
+      allAudiosRef.current.add(audio);
+    }
     try {
       audio.muted = false;
       await audio.play();
@@ -120,6 +126,15 @@ export default function MafiaGame() {
 
   const stopBellRepeat = useCallback(() => {
     bellRepeatDesiredRef.current = false;
+    allAudiosRef.current.forEach(a => {
+      if (a.src.includes("bell-repeat.mp3")) {
+        try {
+          a.pause();
+          a.currentTime = 0;
+        } catch {}
+      }
+    });
+    // Also stop the current one specifically just in case it's not in the set yet
     const a = bellRepeatAudioRef.current;
     if (a) {
       try { a.pause(); } catch {}
@@ -158,67 +173,96 @@ export default function MafiaGame() {
   }, [isNight, playRandomNightSong, isAudioInitialized]);
 
   const handleAudioUnlock = useCallback(async () => {
-    // On Chrome, we only need to do this once.
-    // On iOS, we might need to do it again after interruptions, but usually once per session is okay.
-    const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as Window & { MSStream?: unknown }).MSStream;
-    if (isAudioUnlockedRef.current && !isIOS) return;
+    if (isUnlockingRef.current) return;
+    isUnlockingRef.current = true;
 
-    if (isIOS) {
-      // Recreate the repeating bell element during this user gesture to ensure it's "blessed"
-      // and fresh for the upcoming session, avoiding iOS stalled audio bugs.
-      if (bellRepeatAudioRef.current) {
-        try { bellRepeatAudioRef.current.pause(); } catch {}
+    try {
+      const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as Window & { MSStream?: unknown }).MSStream;
+      if (isAudioUnlockedRef.current && !isIOS) return;
+
+      if (isIOS) {
+        // Stop all existing bell repeats before creating a new one
+        allAudiosRef.current.forEach(a => {
+          if (a.src.includes("bell-repeat.mp3")) {
+            try { a.pause(); } catch {}
+          }
+        });
+
+        const a = new Audio("/bell-repeat.mp3");
+        a.loop = true;
+        a.preload = "auto";
+        allAudiosRef.current.add(a);
+        
+        const recover = () => {
+          if (!bellRepeatDesiredRef.current) return;
+          void a.load();
+          void a.play().catch(() => {});
+        };
+        a.addEventListener("stalled", recover);
+        a.addEventListener("error", recover);
+        
+        bellRepeatAudioRef.current = a;
       }
-      const a = new Audio("/bell-repeat.mp3");
-      a.loop = true;
-      a.preload = "auto";
-      
-      const recover = () => {
-        if (!bellRepeatDesiredRef.current) return;
-        // If it stalls, try to just load/play the same blessed element. 
-        // Re-creating here would fail auto-play as it's not a gesture.
-        void a.load();
-        void a.play().catch(() => {});
-      };
-      a.addEventListener("stalled", recover);
-      a.addEventListener("error", recover);
-      
-      bellRepeatAudioRef.current = a;
-    }
 
-    const audios = [
-      nightAudioRef.current,
-      bellAudioRef.current,
-      bellRepeatAudioRef.current,
-      silentAudioRef.current
-    ];
+      const audios = [
+        nightAudioRef.current,
+        bellAudioRef.current,
+        bellRepeatAudioRef.current,
+        silentAudioRef.current
+      ];
 
-    for (const audio of audios) {
-      if (audio) {
-        // Skip if already playing and unmuted (likely currently in use)
-        if (!audio.paused && !audio.muted && audio !== silentAudioRef.current) continue;
-        // Skip silent keeper if already playing
-        if (audio === silentAudioRef.current && !audio.paused) continue;
+      for (const audio of audios) {
+        if (audio) {
+          allAudiosRef.current.add(audio);
+          
+          // If it's already playing and unmuted, leave it alone
+          if (!audio.paused && !audio.muted && audio !== silentAudioRef.current) continue;
+          
+          // Special case for silent keeper
+          if (audio === silentAudioRef.current && !audio.paused) continue;
 
-        const wasMuted = audio.muted;
-        try {
-          audio.muted = true;
-          await audio.play();
-          if (audio === silentAudioRef.current) {
-            audio.muted = false;
-            audio.volume = 0.001;
-          } else {
-            audio.pause();
-            audio.currentTime = 0;
+          // If we are currently supposed to be playing the bell repeat, don't pause it here
+          if (audio === bellRepeatAudioRef.current && bellRepeatDesiredRef.current) {
+            void playSound(audio);
+            continue;
+          }
+
+          // If we are currently in Night and it's the night audio, don't pause it here
+          if (audio === nightAudioRef.current && isNight) {
+            continue;
+          }
+
+          const wasMuted = audio.muted;
+          try {
+            audio.muted = true;
+            // Play a tiny bit to unlock
+            await audio.play();
+            
+            // Re-check desired state before pausing
+            const isBellRepeat = audio === bellRepeatAudioRef.current;
+            const shouldBePlaying = isBellRepeat ? bellRepeatDesiredRef.current : (audio === nightAudioRef.current ? isNight : false);
+            
+            if (!shouldBePlaying && audio !== silentAudioRef.current) {
+              audio.pause();
+              audio.currentTime = 0;
+              audio.muted = wasMuted;
+            } else if (audio === silentAudioRef.current) {
+              audio.muted = false;
+              audio.volume = 0.001;
+            } else {
+              // Should be playing, unmute it
+              audio.muted = false;
+            }
+          } catch {
             audio.muted = wasMuted;
           }
-        } catch {
-          audio.muted = wasMuted;
         }
       }
+      isAudioUnlockedRef.current = true;
+    } finally {
+      isUnlockingRef.current = false;
     }
-    isAudioUnlockedRef.current = true;
-  }, []);
+  }, [isNight, playSound]);
 
   const triggerIOSAudioHelp = useCallback(() => {
     const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as Window & { MSStream?: unknown }).MSStream;
