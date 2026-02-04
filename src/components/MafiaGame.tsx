@@ -368,7 +368,7 @@ export default function MafiaGame() {
   }, [isNight]);
 
   useEffect(() => {
-    if (isSpeaking || isChallenging) {
+    if ((isSpeaking || isChallenging) && !isNight) {
       const initialTime = isSpeaking ? speechDuration : challengeTime;
       setCountdown(initialTime);
 
@@ -399,7 +399,7 @@ export default function MafiaGame() {
       if (timerRef.current) clearInterval(timerRef.current);
       stopBellRepeat();
     };
-  }, [isSpeaking, isChallenging, speechDuration, challengeTime, extraTime, playSound]);
+  }, [isSpeaking, isChallenging, isNight, speechDuration, challengeTime, extraTime, playSound, stopBellRepeat]);
 
   const delocalizeDigits = (text: string) => {
     const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
@@ -448,6 +448,11 @@ export default function MafiaGame() {
     triggerIOSAudioHelp();
     const nextNight = !isNight;
     setIsNight(nextNight);
+    if (nextNight) {
+      setIsSpeaking(false);
+      setIsChallenging(false);
+      stopBellRepeat();
+    }
     // Directly handle audio in click handler for iOS Safari/PWA
     await handleAudioUnlock();
     if (nextNight) {
@@ -462,6 +467,7 @@ export default function MafiaGame() {
     const nextSpeaking = !isSpeaking;
     if (nextSpeaking) setIsChallenging(false);
     setIsSpeaking(nextSpeaking);
+    if (!nextSpeaking) stopBellRepeat();
     // Pre-unlock sounds on click
     await handleAudioUnlock();
   };
@@ -471,6 +477,7 @@ export default function MafiaGame() {
     const nextChallenging = !isChallenging;
     if (nextChallenging) setIsSpeaking(false);
     setIsChallenging(nextChallenging);
+    if (!nextChallenging) stopBellRepeat();
     // Pre-unlock sounds on click
     await handleAudioUnlock();
   };
