@@ -81,6 +81,8 @@ export default function MafiaGame() {
   const bellRepeatAudioRef = useRef<HTMLAudioElement | null>(null);
   const silentAudioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // Tracks whether the repeating bell is expected to be playing
+  const bellRepeatDesiredRef = useRef(false);
 
   const isAudioUnlockedRef = useRef(false);
 
@@ -105,6 +107,47 @@ export default function MafiaGame() {
       setTimeout(() => setStatusMessage(null), 5000);
     }
   }, [t]);
+
+  // More robust starter for the repeating bell on iOS: recreate element if needed
+  const startBellRepeat = useCallback(async () => {
+    bellRepeatDesiredRef.current = true;
+    // Try to (re)create a fresh element to avoid iOS stalled audio bugs
+    const prev = bellRepeatAudioRef.current;
+    if (prev) {
+      try { prev.pause(); } catch {}
+    }
+
+    const a = new Audio("/bell-repeat.mp3");
+    a.loop = true;
+    a.preload = "auto";
+
+    // Attach lightweight self-heal handlers
+    const tryRecover = () => {
+      if (!bellRepeatDesiredRef.current) return;
+      // Recreate and restart
+      const fresh = new Audio("/bell-repeat.mp3");
+      fresh.loop = true;
+      fresh.preload = "auto";
+      bellRepeatAudioRef.current = fresh;
+      void playSound(fresh);
+    };
+
+    a.addEventListener("stalled", tryRecover);
+    a.addEventListener("error", tryRecover);
+
+    bellRepeatAudioRef.current = a;
+    a.currentTime = 0;
+    await playSound(a);
+  }, [playSound]);
+
+  const stopBellRepeat = useCallback(() => {
+    bellRepeatDesiredRef.current = false;
+    const a = bellRepeatAudioRef.current;
+    if (a) {
+      try { a.pause(); } catch {}
+      a.currentTime = 0;
+    }
+  }, []);
 
   const playRandomNightSong = useCallback(() => {
     if (!nightAudioRef.current) return;
@@ -211,6 +254,7 @@ export default function MafiaGame() {
         bellAudioRef.current.preload = "auto";
       }
       if (!bellRepeatAudioRef.current) {
+        // Create once for early unlock, but we'll recreate on actual start to avoid iOS glitches
         bellRepeatAudioRef.current = new Audio("/bell-repeat.mp3");
         bellRepeatAudioRef.current.loop = true;
         bellRepeatAudioRef.current.preload = "auto";
@@ -339,22 +383,20 @@ export default function MafiaGame() {
             if (bellAudioRef.current) bellAudioRef.current.currentTime = 0;
             void playSound(bellAudioRef.current);
           } else if (next === -extraTime) {
-            if (bellRepeatAudioRef.current) bellRepeatAudioRef.current.currentTime = 0;
-            void playSound(bellRepeatAudioRef.current);
+            void startBellRepeat();
           }
           return next;
         });
       }, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
-      bellRepeatAudioRef.current?.pause();
-      if (bellRepeatAudioRef.current) bellRepeatAudioRef.current.currentTime = 0;
+      stopBellRepeat();
       setCountdown(speechDuration);
     }
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      bellRepeatAudioRef.current?.pause();
+      stopBellRepeat();
     };
   }, [isSpeaking, isChallenging, speechDuration, challengeTime, extraTime, playSound]);
 
