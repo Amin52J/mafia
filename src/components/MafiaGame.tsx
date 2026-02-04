@@ -108,36 +108,14 @@ export default function MafiaGame() {
     }
   }, [t]);
 
-  // More robust starter for the repeating bell on iOS: recreate element if needed
+  // Use the pre-blessed repeating bell element
   const startBellRepeat = useCallback(async () => {
     bellRepeatDesiredRef.current = true;
-    // Try to (re)create a fresh element to avoid iOS stalled audio bugs
-    const prev = bellRepeatAudioRef.current;
-    if (prev) {
-      try { prev.pause(); } catch {}
+    const a = bellRepeatAudioRef.current;
+    if (a) {
+      a.currentTime = 0;
+      await playSound(a);
     }
-
-    const a = new Audio("/bell-repeat.mp3");
-    a.loop = true;
-    a.preload = "auto";
-
-    // Attach lightweight self-heal handlers
-    const tryRecover = () => {
-      if (!bellRepeatDesiredRef.current) return;
-      // Recreate and restart
-      const fresh = new Audio("/bell-repeat.mp3");
-      fresh.loop = true;
-      fresh.preload = "auto";
-      bellRepeatAudioRef.current = fresh;
-      void playSound(fresh);
-    };
-
-    a.addEventListener("stalled", tryRecover);
-    a.addEventListener("error", tryRecover);
-
-    bellRepeatAudioRef.current = a;
-    a.currentTime = 0;
-    await playSound(a);
   }, [playSound]);
 
   const stopBellRepeat = useCallback(() => {
@@ -184,6 +162,29 @@ export default function MafiaGame() {
     // On iOS, we might need to do it again after interruptions, but usually once per session is okay.
     const isIOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !(window as Window & { MSStream?: unknown }).MSStream;
     if (isAudioUnlockedRef.current && !isIOS) return;
+
+    if (isIOS) {
+      // Recreate the repeating bell element during this user gesture to ensure it's "blessed"
+      // and fresh for the upcoming session, avoiding iOS stalled audio bugs.
+      if (bellRepeatAudioRef.current) {
+        try { bellRepeatAudioRef.current.pause(); } catch {}
+      }
+      const a = new Audio("/bell-repeat.mp3");
+      a.loop = true;
+      a.preload = "auto";
+      
+      const recover = () => {
+        if (!bellRepeatDesiredRef.current) return;
+        // If it stalls, try to just load/play the same blessed element. 
+        // Re-creating here would fail auto-play as it's not a gesture.
+        void a.load();
+        void a.play().catch(() => {});
+      };
+      a.addEventListener("stalled", recover);
+      a.addEventListener("error", recover);
+      
+      bellRepeatAudioRef.current = a;
+    }
 
     const audios = [
       nightAudioRef.current,
