@@ -13,5 +13,7 @@ export interface Card {
   role: string;
   isFlipped: boolean;
   isSeen: boolean;
-  side: "citizen" | "mafia"
+  side: "citizen" | "mafia";
+  playerName?: string;
+  initialIndex: number;
 }

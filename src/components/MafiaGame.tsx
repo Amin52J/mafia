@@ -71,6 +71,7 @@ export default function MafiaGame() {
     return 10;
   });
   const [godsNote, setGodsNote] = useState("");
+  const [showPlayerRoles, setShowPlayerRoles] = useState(false);
   const [countdown, setCountdown] = useState(speechDuration);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isChallenging, setIsChallenging] = useState(false);
@@ -469,7 +470,7 @@ export default function MafiaGame() {
       if (timerRef.current) clearInterval(timerRef.current);
       stopBellRepeat();
     };
-  }, [isSpeaking, isChallenging, isNight, speechDuration, challengeTime, extraTime, playSound, stopBellRepeat]);
+  }, [isSpeaking, isChallenging, isNight, speechDuration, challengeTime, extraTime, playSound, stopBellRepeat, startBellRepeat]);
 
   const delocalizeDigits = (text: string) => {
     const persianDigits = [/۰/g, /۱/g, /۲/g, /۳/g, /۴/g, /۵/g, /۶/g, /۷/g, /۸/g, /۹/g];
@@ -798,11 +799,12 @@ export default function MafiaGame() {
 
     // Shuffle
     const shuffled = allRoles
-      .map(({role, side}) => ({ role, side, sort: Math.random() }))
+      .map(({role, side}, initialIndex) => ({ role, side, initialIndex, sort: Math.random() }))
       .sort((a, b) => a.sort - b.sort)
-      .map(({ role, side }, index) => ({
+      .map(({ role, side, initialIndex }, index) => ({
         id: index,
         role,
+        initialIndex,
         isFlipped: false,
         isSeen: false,
         side: side as "citizen" | "mafia",
@@ -876,6 +878,10 @@ export default function MafiaGame() {
     }, 400);
   };
 
+  const updatePlayerName = (id: number, name: string) => {
+    setCards(prev => prev.map(c => c.id === id ? { ...c, playerName: name } : c));
+  };
+
   const restart = () => {
     setIsStarted(false);
     setCards([]);
@@ -890,6 +896,7 @@ export default function MafiaGame() {
     setIsNight(false);
     setIsSpeaking(false);
     setGodsNote("");
+    setShowPlayerRoles(false);
     playedSongsRef.current.clear();
   };
 
@@ -1218,6 +1225,42 @@ export default function MafiaGame() {
                   </div>
                 </div>
               )}
+
+              <div className="w-full mb-8 glass rounded-3xl border border-white/10 p-6">
+                <button
+                  onClick={() => setShowPlayerRoles(!showPlayerRoles)}
+                  className="w-full flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500"
+                >
+                  <span className="flex-1 text-center">{t("playerRoles")}</span>
+                  <Icon className={`h-4 w-4 transition-transform duration-300 ${showPlayerRoles ? "rotate-180" : ""}`}>
+                    <path d="m6 9 6 6 6-6" />
+                  </Icon>
+                </button>
+                
+                {showPlayerRoles && (
+                  <div className="mt-6 space-y-4 animate-fade-in">
+                    {[...cards].sort((a, b) => a.initialIndex - b.initialIndex).map((card) => (
+                      <div key={card.id} className="flex items-center gap-3 text-start">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs border shrink-0 ${card.side === "mafia" ? "bg-mafia/10 border-mafia text-mafia" : "bg-citizen/10 border-citizen text-citizen"}`}>
+                          {formatNumber(card.id + 1)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 truncate">
+                            {card.role}
+                          </div>
+                          <input
+                            type="text"
+                            value={card.playerName || ""}
+                            onChange={(e) => updatePlayerName(card.id, e.target.value)}
+                            placeholder={t("playerName")}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="w-full mb-8 glass rounded-3xl border border-white/10 p-6">
                 <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-3 text-center">

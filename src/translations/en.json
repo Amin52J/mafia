@@ -53,5 +53,7 @@
   "importSuccess": "Data imported successfully",
   "importError": "Invalid data format",
   "tapToEnableAudio": "Tap to enable audio",
-  "iosAudioHelp": "if you don't hear the sound of the music or the bell, please lock and unlock your phone to fix the issue or alternatively open the app in a browser."
+  "iosAudioHelp": "if you don't hear the sound of the music or the bell, please lock and unlock your phone to fix the issue or alternatively open the app in a browser.",
+  "playerName": "Player Name",
+  "playerRoles": "Players and Roles"
 }
