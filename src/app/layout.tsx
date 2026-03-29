@@ -1,23 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Vazirmatn } from "next/font/google";
 import "./globals.css";
-import { LanguageProvider } from "@/hooks/useLanguage";
+import { LanguageProvider } from "@/features/language";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
-
-const geistSans = Geist({
-  variable: "--geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--geist-mono",
-  subsets: ["latin"],
-});
-
-const vazir = Vazirmatn({
-  variable: "--font-vazirmatn",
-  subsets: ["arabic"],
-});
+import { fontVariables } from "./fonts";
 
 export const metadata: Metadata = {
   title: "Mafia Game",
@@ -51,7 +36,7 @@ export default function RootLayout({
     <html
       lang="fa"
       dir="rtl"
-      className={`${geistSans.variable} ${geistMono.variable} ${vazir.variable} dark`}
+      className={`${fontVariables} dark`}
       suppressHydrationWarning
     >
       <body className="antialiased bg-black text-white">

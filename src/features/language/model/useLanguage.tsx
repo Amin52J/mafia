@@ -1,33 +1,30 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import en from "../translations/en.json";
-import fa from "../translations/fa.json";
+import en from "@/translations/en.json";
+import fa from "@/translations/fa.json";
 
-type Translations = typeof en;
+export type Language = "en" | "fa";
+export type Translations = typeof en;
+export type TranslationKey = keyof Translations;
 
 interface LanguageContextType {
-  language: string;
-  setLanguage: (lang: string) => void;
-  t: (key: keyof Translations) => string;
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: TranslationKey) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-const translations: Record<string, Translations> = {
-  en,
-  fa,
-};
+const translations: Record<Language, Translations> = { en, fa };
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState("fa");
+  const [language, setLanguage] = useState<Language>("fa");
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("language");
+    const savedLang = localStorage.getItem("language") as Language | null;
     if (savedLang && translations[savedLang]) {
-      setTimeout(() => {
-        setLanguage(savedLang);
-      }, 0);
+      setTimeout(() => setLanguage(savedLang), 0);
     }
   }, []);
 
@@ -36,12 +33,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = language;
   }, [language]);
 
-  const handleSetLanguage = (lang: string) => {
+  const handleSetLanguage = (lang: Language) => {
     setLanguage(lang);
     localStorage.setItem("language", lang);
   };
 
-  const t = (key: keyof Translations): string => {
+  const t = (key: TranslationKey): string => {
     return translations[language]?.[key] || translations["fa"][key] || key;
   };
 
