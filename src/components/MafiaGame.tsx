@@ -38,11 +38,19 @@ export default function MafiaGame() {
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const godsNoteRef = useRef<HTMLTextAreaElement>(null);
 
-  const audio = useAudio();
+  const {
+    playBell,
+    startBellRepeat,
+    stopBellRepeat,
+    startNight,
+    stopNight,
+    handleAudioUnlock,
+    clearPlayedSongs,
+  } = useAudio();
   const timer = useTimer({
-    playBell: audio.playBell,
-    startBellRepeat: audio.startBellRepeat,
-    stopBellRepeat: audio.stopBellRepeat,
+    playBell,
+    startBellRepeat,
+    stopBellRepeat,
   });
   const scenarios = useScenarios({ language, t: t as (key: string) => string });
   const cardDeck = useCardDeck({
@@ -69,11 +77,12 @@ export default function MafiaGame() {
   }, [activeModal]);
 
   useEffect(() => {
-    if (!session.isNight) audio.stopNight();
-    return () => {
-      audio.stopNight();
-    };
-  }, [session.isNight, audio]);
+    if (!session.isNight) {
+      stopNight();
+      return;
+    }
+    return () => stopNight();
+  }, [session.isNight, stopNight]);
 
   const parseLocalizedNumber = (val: string): number | null => {
     const normalized = delocalizeDigits(val);
@@ -101,8 +110,8 @@ export default function MafiaGame() {
     cardDeck.createDeck(setup.mafiaRoles, setup.citizenRoles);
     setIsStarted(true);
     session.setGodsNote("");
-    audio.clearPlayedSongs();
-    await audio.handleAudioUnlock(false);
+    clearPlayedSongs();
+    await handleAudioUnlock(false);
   };
 
   const restart = () => {
@@ -110,26 +119,30 @@ export default function MafiaGame() {
     cardDeck.reset();
     session.reset();
     timer.stopAll();
-    audio.clearPlayedSongs();
+    clearPlayedSongs();
   };
 
   const toggleNight = async () => {
     const nextNight = !session.isNight;
     session.setIsNight(nextNight);
     if (nextNight) timer.stopAll();
-    await audio.handleAudioUnlock(nextNight);
-    if (nextNight) await audio.startNight();
-    else audio.stopNight();
+    if (nextNight) {
+      await handleAudioUnlock(true);
+      await startNight();
+    } else {
+      stopNight();
+      await handleAudioUnlock(false);
+    }
   };
 
   const toggleSpeaking = async () => {
     timer.toggleSpeaking();
-    await audio.handleAudioUnlock(session.isNight);
+    await handleAudioUnlock(session.isNight);
   };
 
   const toggleChallenging = async () => {
     timer.toggleChallenging();
-    await audio.handleAudioUnlock(session.isNight);
+    await handleAudioUnlock(session.isNight);
   };
 
   const saveScenario = () => {

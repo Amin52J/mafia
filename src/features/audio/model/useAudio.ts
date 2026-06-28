@@ -16,6 +16,7 @@ export function useAudio() {
   const allAudiosRef = useRef<Set<HTMLAudioElement>>(new Set());
   const isUnlockingRef = useRef(false);
   const isAudioUnlockedRef = useRef(false);
+  const isNightActiveRef = useRef(false);
 
   const playSound = useCallback(async (audio: HTMLAudioElement | null) => {
     if (!audio) return;
@@ -113,11 +114,11 @@ export function useAudio() {
           allAudiosRef.current.add(b);
           bellAudioRef.current = b;
 
-          if (!isNight) {
+          if (!isNight && !isNightActiveRef.current) {
             const n = new Audio();
             n.preload = "auto";
             n.onended = () => {
-              if (isNight) playRandomNightSong();
+              if (isNightActiveRef.current) playRandomNightSong();
             };
             allAudiosRef.current.add(n);
             nightAudioRef.current = n;
@@ -153,7 +154,7 @@ export function useAudio() {
             void playSound(audio);
             continue;
           }
-          if (audio === nightAudioRef.current && isNight) continue;
+          if (audio === nightAudioRef.current && isNightActiveRef.current) continue;
 
           const wasMuted = audio.muted;
           try {
@@ -164,7 +165,7 @@ export function useAudio() {
             const shouldBePlaying = isBellRepeat
               ? bellRepeatDesiredRef.current
               : audio === nightAudioRef.current
-                ? isNight
+                ? isNightActiveRef.current
                 : false;
 
             if (!shouldBePlaying && audio !== silentAudioRef.current) {
@@ -222,7 +223,9 @@ export function useAudio() {
     setIsAudioInitialized(true);
 
     const handleInteraction = () => {
-      void handleAudioUnlock(false);
+      if (!isAudioUnlockedRef.current) {
+        void handleAudioUnlock(false);
+      }
       document.removeEventListener("touchstart", handleInteraction);
       document.removeEventListener("click", handleInteraction);
     };
@@ -237,11 +240,13 @@ export function useAudio() {
   }, [handleAudioUnlock]);
 
   const startNight = useCallback(async () => {
+    isNightActiveRef.current = true;
     await handleAudioUnlock(true);
     playRandomNightSong();
   }, [handleAudioUnlock, playRandomNightSong]);
 
   const stopNight = useCallback(() => {
+    isNightActiveRef.current = false;
     nightAudioRef.current?.pause();
   }, []);
 
